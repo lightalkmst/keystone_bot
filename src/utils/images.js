@@ -80,7 +80,6 @@ const get_decklist = user_id => async p => {
     ),
     ...(rules.has_sideboarding ? [p.sideboard] : []),
   ]
-  F.log (decks)
   await sharp ({
     create: {
       width: width * F.p (decks) (A.map (validation.get_cards) >> A.map (x => x.length + 1) >> A.fold (a => x => a > x ? a : x) (0)),

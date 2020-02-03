@@ -23,7 +23,36 @@ const NOT_PLAYING_ERROR = {}
 
 let in_progress = false
 let round = 1
-let players = []
+let players =
+  [
+    // {
+    //   id: '155333141458976768',
+    //   username: 'Thighlander',
+    //   discriminator: '0671',
+    //   deck1: 'KingPuff: OnceBitten, GatlingBike, DroneWalker, Fireball, BurstCannon, SwarmerKing, PropellerHorde, SniperSquad, SoulStealer, BlueGolem',
+    //   deck2: 'Volco: NetherBat, ScreamingScrat, EliteSwarmer, PropellerScrats, DragonWhelp, Owls, BatSwarm, ShieldedCrossbowDudes, DivineWarrior, Cleaver',
+    //   deck3: 'Settsu: BannerMan, CrystalMage, SnakeDruid, SniperScrat, SwarmerKing, Musketeer, Blastmancer, DefensoChopper, ScratStorm, Cleaver',
+    //   deck4: 'Stormbringer: ScreamingScrat, CrossbowDudes, BannerMan, PlasmaMarines, SniperScrat, XiaoLong, BountySniper, FireImp, SniperSquad, Styxi',
+    //   sideboard: 'NetherBat, ScreamingScrat, FireImp, Fireball, ClippedDragonWhelps, ScratTank, ScratStorm',
+    //   matchups: [],
+    //   playing: false,
+    //   points: 0
+    // },
+    // {
+    //   id: '278588414360551424',
+    //   username: 'salbei',
+    //   discriminator: '0483',
+    //   deck1: 'Settsu: BannerMan, CrystalMage, SnakeDruid, SniperScrat, SwarmerKing, Musketeer, Blastmancer, DefensoChopper, ScratStorm, Cleaver',
+    //   deck2: 'Stormbringer: ScreamingScrat, CrossbowDudes, BannerMan, PlasmaMarines, SniperScrat, XiaoLong, BountySniper, FireImp, SniperSquad, Styxi',
+    //   deck3: 'KingPuff: OnceBitten, GatlingBike, DroneWalker, Fireball, BurstCannon, SwarmerKing, PropellerHorde, SniperSquad, SoulStealer, BlueGolem',
+    //   deck4: 'Volco: NetherBat, ScreamingScrat, EliteSwarmer, PropellerScrats, DragonWhelp, Owls, BatSwarm, ShieldedCrossbowDudes, DivineWarrior, Cleaver',
+    //   sideboard: 'NetherBat, ScreamingScrat, FireImp, Fireball, ClippedDragonWhelps, ScratTank, ScratStorm',
+    //   matchups: [],
+    //   playing: false,
+    //   points: 0
+    // },
+  ]
+
 let dropped = []
 let leader = null
 
@@ -72,7 +101,9 @@ const swiss = players => {
       : {
         id: players [matches [i]].id,
         result: 'pending',
-      }, ... x.matchups],
+      },
+      ... x.matchups,
+    ],
   })) (players)
 
   // var possiblePairs = []
@@ -113,11 +144,18 @@ const score = p =>
   ? p
   : {
     ... p,
-    points: A.fold (a => h => a + {
-      win: rules.points_per_win,
-      loss: rules.points_per_loss,
-      draw: rules.points_per_draw,
-    } [h.result]) (0) (p.matchups),
+    points:
+      F.p (p.matchups) (
+        A.map (x =>
+          F.match (x.result)
+          .case ('win') (() => rules.points_per_win)
+          .case ('loss') (() => rules.points_per_loss)
+          .case ('draw') (() => rules.points_per_draw)
+          .default (() => 0) // TODO: switch to end
+        )
+        >> A.fold (F ['+']) (0)
+      )
+    ,
   }
 
 const record_match = result => p => ({
@@ -126,6 +164,7 @@ const record_match = result => p => ({
     ... A.head (p.matchups),
     result,
   }, ... A.tail (p.matchups)],
+  playing: true,
   points: undefined,
 })
 const record_win = record_match ('win')
@@ -135,6 +174,8 @@ const record_bye = record_match ('bye')
 
 // TODOS
 // !score to check current personal score during a tournament
+// !validate should make sure that the cards are in the valid deck
+// prompt user with messages at each step
 
 ;(async () => {
   client.on ('ready',  () => {
@@ -211,30 +252,30 @@ const record_bye = record_match ('bye')
           return
         }
         const opp = A.find (y => y.id === x.matchups [0].id) (players)
-        await send_user_messages (x.id, [`The next round has begun. You are matched against ${user_string (opp)}`])
-        // await images.get_decklists ({masters, cards, user_id: x.id}) (x)
-        // await send_user_messages (x.id, [`Your submitted decklist is:`], {files: [`${config.temp_images_path}/${x.id}.jpg`]})
-        // fs.unlinkSync (`${config.temp_images_path}/${x.id}.jpg`)
-        // await images.get_decklists ({masters, cards, user_id: x.id}) (x)
-        // await send_user_messages (x.id, [`Your opponent's submitted decklist is:`], {files: [`${config.temp_images_path}/${x.id}.jpg`]})
-        // fs.unlinkSync (`${config.temp_images_path}/${x.id}.jpg`)
+        await send_user_message (x.id, `The next round has begun. You are matched against ${user_string (opp)}`)
+        await images.get_decklist (x.id) (player)
+        await send_user_message (x.id, `Your decklist:`, {files: [`${config.temp_images_path}/${x.id}.jpg`]})
+        await promisify (fs.unlink) (`${config.temp_images_path}/${x.id}.jpg`)
+        await images.get_decklist (x.id) (opp)
+        await send_user_message (x.id, `Your opponent's decklist:`, {files: [`${config.temp_images_path}/${x.id}.jpg`]})
+        await promisify (fs.unlink) (`${config.temp_images_path}/${x.id}.jpg`)
       }) (players)
 
     const print_scoreboard = async () => {
-      const compare = x => y => x.points - y.points
+      const compare = x => y => y.points - x.points // descending
       players = A.sort (compare) (A.map (score) (players))
       dropped = A.sort (compare) (A.map (score) (dropped))
       await send_main_message (`The current standings:`)
-      await A.P.s.iteri (i => async y => {
-        const win = A.length (A.filter (x => x.result === 'win') (y.matchups))
-        const loss = A.length (A.filter (x => x.result === 'loss') (y.matchups))
-        const drew = A.length (A.filter (x => x.result === 'draw') (y.matchups))
+      await A.P.s.iteri (i => async x => {
+        const win = A.length (A.filter (y => y.result === 'win') (x.matchups))
+        const loss = A.length (A.filter (y => y.result === 'loss') (x.matchups))
+        const drew = A.length (A.filter (y => y.result === 'draw') (x.matchups))
         await send_main_message (`${i + 1}) ${x.username}#${x.discriminator} [ ${x.points} points | ${win} W - ${loss} L - ${drew} D ]`)
       }) (players)
-      await A.P.s.iteri (i => async y => {
-        const win = A.length (A.filter (x => x.result === 'win') (y.matchups))
-        const loss = A.length (A.filter (x => x.result === 'loss') (y.matchups))
-        const drew = A.length (A.filter (x => x.result === 'draw') (y.matchups))
+      await A.P.s.iteri (i => async x => {
+        const win = A.length (A.filter (y => y.result === 'win') (x.matchups))
+        const loss = A.length (A.filter (y => y.result === 'loss') (x.matchups))
+        const drew = A.length (A.filter (y => y.result === 'draw') (x.matchups))
         await send_main_message (`${i + 1}) ${x.username}#${x.discriminator} [ ${x.points} points | ${win} W - ${loss} L - ${drew} D ] (dropped)`)
       }) (dropped)
     }
@@ -255,12 +296,14 @@ const record_bye = record_match ('bye')
         // !welcome to list the briefing
         case `${config.prefix}welcome`:
           not_in_progress_check ()
-          await send_main_message (`This is the automated casual tournament bot for The Challenger League`)
-          await send_main_message (`You can use it to arrange practice tournaments with other players`)
-          await send_main_message (`All players that would like to participate should register with the bot using !register`)
-          await send_main_message (`After registering, the bot will work in private messages`)
-          await send_main_message (`After all players have registered, the tournament leader starts the tournament with !start`)
-          await send_main_message (`Use !help to get a list of commands and their usages`)
+          await send_main_messages ([
+            `This is the automated casual tournament bot for The Challenger League`,
+            `You can use it to arrange practice tournaments with other players`,
+            `All players that would like to participate should register with the bot using !register`,
+            `After registering, the bot will work in private messages`,
+            `After all players have registered, the tournament leader starts the tournament with !start`,
+            `Use !help to get a list of commands and their usages`,
+          ])
           return
         // !register to join the day's tournament
         case `${config.prefix}register`:
@@ -279,7 +322,10 @@ const record_bye = record_match ('bye')
             playing: false,
             points: 0,
           }]
-          await send_direct_message (`You have been registered for the next automated casual tournament`)
+          await send_direct_messages ([
+            `You have been registered for the next automated casual tournament`,
+            `Use !help to get a list of commands and their usages`,
+          ])
           await log_command ()
           return
         // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
@@ -339,8 +385,7 @@ const record_bye = record_match ('bye')
           if (split_message.length > 1) {
             const errors = validation.validate_deck (S.join (' ') (A.tail (split_message)))
             if (errors.length) {
-              await send_message (`This deck has the following errors:`)
-              await A.P.s.iter (send_message) (errors)
+              await send_messages ([`This deck has the following errors:`, ... errors])
               return
             }
             await send_message (`This deck is valid`)
@@ -352,8 +397,7 @@ const record_bye = record_match ('bye')
           await promisify (fs.unlink) (`${config.temp_images_path}/${id}.jpg`)
           const errors = validation.validate_decks (player)
           if (errors.length) {
-            await send_message (`This decklist has the following errors:`)
-            await A.P.s.iter (send_message) (errors)
+            await send_messages ([`This decklist has the following errors:`, ... errors])
             return
           }
           await send_message (`This decklist is valid`)
@@ -374,21 +418,26 @@ const record_bye = record_match ('bye')
               return
             }
             await A.P.s.iter (async ({player, errors}) => {
-              await send_message (`${user_string (player)} has the following decklist errors:`)
-              await A.P.s.iter (send_message) (errors)
+              await send_messages ([`${user_string (player)} has the following decklist errors:`, ... errors])
             }) (errors)
             return
           }
-          const unready = A.filter (x => ! x.playing) (players)
+          const idle = A.filter (x => ! x.playing) (players)
+          const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (players)
+          const won = A.filter (x => x.matchups [0].result === 'win') (players)
+          const lost = A.filter (x => x.matchups [0].result === 'loss') (players)
+          const drew = A.filter (x => x.matchups [0].result === 'draw') (players)
           await send_messages ([
             `The following players are idle:`,
-            ... A.filter (x => ! x.playing) (players),
+            ... A.map (user_string) (idle),
             `The following players are playing:`,
-            ... A.filter (x => x.playing && x.matchups [0].result === 'pending') (players),
+            ... A.map (user_string) (playing),
             `The following players have won their game:`,
-            ... A.filter (x => x.matchups [0].result === 'win') (players),
+            ... A.map (user_string) (won),
             `The following players have lost their game:`,
-            ... A.filter (x => x.matchups [0].result === 'loss') (players),
+            ... A.map (user_string) (lost),
+            `The following players have drawn their game:`,
+            ... A.map (user_string) (drew),
           ])
           return
         // !scoreboard to print out the current scores
@@ -421,11 +470,13 @@ const record_bye = record_match ('bye')
             return
           }
           if (A.exists (x => x.matchups [0].result === 'pending') (players)) {
+            const idle = A.filter (x => ! x.playing) (players)
+            const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (players)
             await send_messages ([
               `The following players have not started their game:`,
-              ... A.filter (x => ! x.playing) (players),
+              ... A.map (user_string) (idle),
               `The following players have not finished their game:`,
-              ... A.filter (x => x.matchups [0].result === 'pending') (players),
+              ... A.map (user_string) (playing),
             ])
             return
           }
@@ -514,6 +565,17 @@ const record_bye = record_match ('bye')
             await (`You are not the tournament organizer`)
             return
           }
+          if (A.exists (x => x.matchups [0].result === 'pending') (players)) {
+            const idle = A.filter (x => ! x.playing) (players)
+            const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (players)
+            await send_messages ([
+              `The following players have not started their game:`,
+              ... A.map (user_string) (idle),
+              `The following players have not finished their game:`,
+              ... A.map (user_string) (playing),
+            ])
+            return
+          }
           await send_message (`The tournament has been ended`)
           await print_scoreboard ()
           await send_message (`Please use ${config.prefix}welcome in the public bot channel after any further tournament conclusions`)
@@ -555,9 +617,9 @@ const record_bye = record_match ('bye')
             check: ! in_progress,
             command: `sideboard </cud>`,
             effect: `submit a sideboard, taking the /cud deck format from the game client`,
-          // }, {
-          //   command: `decklist`,
-          //   effect: `print out the current decklist and any errors`,
+          }, {
+            command: `decklist`,
+            effect: `print out the current decklist and any errors`,
           }, {
             command: `validate </cud>`,
             effect: `check the deck for any errors`,
@@ -611,18 +673,18 @@ const record_bye = record_match ('bye')
             effect: `Hint: you just used it`,
           }]) (
             A.filter (x => x.check || is_admin)
-            >> A.P.s.iter (async ({
+            >> A.map (({
               check = true,
               command,
               effect,
               has_admin_version = false,
-            }) => {
-              await send_message (`Command: ${config.prefix}${command}`)
-              await send_message (`Effect: ${effect}`)
-              if (has_admin_version && is_admin) {
-                await send_message (`This command has an admin version`)
-              }
-            })
+            }) => [
+              `Command: ${config.prefix}${command}`,
+              `Effect: ${effect}`,
+              ... (has_admin_version && is_admin ? [`This command has an admin version`] : [])
+            ])
+            >> A.fold (A.append) ([])
+            >> send_messages
           )
           return
         }
@@ -634,7 +696,7 @@ const record_bye = record_match ('bye')
           await send_message (`${is_admin_command ? 'Player has' : 'You have'} already registered for the tournament`)
           return
         case NOT_REGISTERED_ERROR:
-        await send_message (`${is_admin_command ? 'Player has' : 'You have'} not registered for this tournament with !register yet`)
+          await send_message (`${is_admin_command ? 'Player has' : 'You have'} not registered for this tournament with !register yet`)
           return
         case IN_PROGRESS_ERROR:
           await send_message (`The tournament has already started`)
