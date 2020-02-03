@@ -1,0 +1,9 @@
+# npm stuff
+node_modules
+package-lock.json
+
+# private stuff
+config.js
+
+# temporary stuff
+/output/
