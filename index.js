@@ -16,10 +16,12 @@ const images = require ('./src/utils/images')
 const validation = require ('./src/utils/validation')
 
 // TODOS
+// !status count number of players in the tournament
 // !score to check current personal score during a tournament
 // !validate should make sure that the cards are in the valid deck
 // prompt user with messages at each step
 // fix validation error messages
+// omit master from sideboard
 
 const REGISTERED_ERROR = {}
 const NOT_REGISTERED_ERROR = {}
@@ -110,6 +112,7 @@ const swiss = players => {
       },
       ... x.matchups,
     ],
+    playing: matches [i] === -1,
   })) (players)
 
   // var possiblePairs = []
@@ -238,7 +241,7 @@ const record_bye = record_match ('bye')
     // if the user is an admin and using an admin command, allow them to select the user by discord id
     const id = is_admin_command ? split_message [1] : user_id
 
-    const player = A.try_find (y => y.id === id) (players)
+    const player = A.try_find (x => x.id === id) (players)
     const opponent_id = (((player || {}).matchups || {}) [0] || {}).id
 
     const log_command = async () =>
@@ -425,7 +428,7 @@ const record_bye = record_match ('bye')
           }
           const idle = A.filter (x => ! x.playing) (players)
           const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (players)
-          const won = A.filter (x => x.matchups [0].result === 'win') (players)
+          const won = A.filter (x => A.contains (x.matchups [0].result) (['win', 'bye'])) (players)
           const lost = A.filter (x => x.matchups [0].result === 'loss') (players)
           const drew = A.filter (x => x.matchups [0].result === 'draw') (players)
           await send_messages ([
@@ -553,7 +556,7 @@ const record_bye = record_match ('bye')
           registered_check ()
           players = [
             ... A.filter (x => x.id !== id && x.id !== opponent_id) (players),
-            record_bye (A.find (x => x.id === opponent_id) (players)),
+            ... (opponent_id ? [record_bye (A.find (x => x.id === opponent_id) (players))] : []),
           ]
           dropped = [... dropped, player]
           await send_message (`${is_admin_command ? 'Player has' : 'You have'} been dropped from this tournament`)
