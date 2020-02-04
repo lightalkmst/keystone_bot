@@ -335,6 +335,7 @@ const record_bye = record_match ('bye')
         // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
         case `${config.prefix}deck`:
           registered_check ()
+          not_in_progress_check ()
           const n = split_message [1]
           if (! S.match (/^([0-9]+)$/) (n)) {
             await send_message (`Expected deck slot to be between 1 and ${rules.number_of_decks} but was given "${n}"`)
@@ -360,6 +361,7 @@ const record_bye = record_match ('bye')
         // !sideboard same thing
         case `${config.prefix}sideboard`:
           registered_check ()
+          not_in_progress_check ()
           const sideboard = F.c (A.tail >> S.join (' ')) (split_message)
           if (! is_sideboard (sideboard)) {
             await send_message (`Expected sideboard to be in /cud format but was given "${sideboard}"`)
@@ -456,6 +458,7 @@ const record_bye = record_match ('bye')
             await send_message (`Not enough players to start a tournament`)
             return
           }
+          not_in_progress_check ()
           in_progress = true
           leader = id
           await send_message (`The tournament has begun`)
@@ -497,6 +500,7 @@ const record_bye = record_match ('bye')
         case `${config.prefix}play`:
           // add player to active players
           registered_check ()
+          in_progress_check ()
           players = [
             ... A.filter (x => x !== player) (players),
             {
@@ -512,6 +516,7 @@ const record_bye = record_match ('bye')
         case `${config.admin_prefix}win`:
           // records win result
           registered_check ()
+          in_progress_check ()
           playing_check ()
           players = [
             ... A.filter (x => x.id !== id && x.id !== opponent_id) (players),
@@ -526,6 +531,7 @@ const record_bye = record_match ('bye')
         case `${config.admin_prefix}loss`:
           // records loss result
           registered_check ()
+          in_progress_check ()
           playing_check ()
           players = [
             ... A.filter (x => x.id !== id && x.id !== opponent_id) (players),
@@ -540,6 +546,7 @@ const record_bye = record_match ('bye')
         case `${config.admin_prefix}draw`:
           // records win result
           registered_check ()
+          in_progress_check ()
           playing_check ()
           players = [
             ... A.filter (x => x.id !== id && x.id !== opponent_id) (players),
@@ -566,6 +573,7 @@ const record_bye = record_match ('bye')
         // !end to end the tournament
         case `${config.prefix}end`:
         case `${config.admin_prefix}end`:
+          in_progress_check ()
           if (id !== leader && ! is_admin_command) {
             await (`You are not the tournament organizer`)
             return
