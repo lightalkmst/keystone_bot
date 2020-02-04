@@ -97,7 +97,7 @@ const get_decklist = user_id => async p => {
   .composite (
     F.p (decks) (
       A.mapi (i => d =>
-        F.p ([validation.get_master (d), ...validation.get_cards (d)]) (
+        F.p ([i !== decks.length - 1 ? validation.get_master (d) : '', ... validation.get_cards (d)]) (
           A.mapi (i2 => x => ({
             input: `assets/${S.lower (x)}.jpg`,
             top: i * height,

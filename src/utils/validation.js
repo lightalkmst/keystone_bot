@@ -12,7 +12,7 @@ const uniq = l => {
 
 const is_cud = S.match (/^[a-zA-Z]*: ([a-zA-Z0-9-]+, ){0,9}[a-zA-Z0-9-]+$/)
 
-const is_sideboard = S.match (/^([a-zA-Z]*: |)([a-zA-Z0-9-]+, ){0,9}([a-zA-Z0-9-]+)$/)
+const is_sideboard = S.match (/^[a-zA-Z]*: ([a-zA-Z0-9-]+, ){0,9}[a-zA-Z0-9-]+$/)
 
 const get_master = F.c (
   S.split (':')
