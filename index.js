@@ -15,6 +15,12 @@ const rules = config.rules
 const images = require ('./src/utils/images')
 const validation = require ('./src/utils/validation')
 
+// TODOS
+// !score to check current personal score during a tournament
+// !validate should make sure that the cards are in the valid deck
+// prompt user with messages at each step
+// fix validation error messages
+
 const REGISTERED_ERROR = {}
 const NOT_REGISTERED_ERROR = {}
 const IN_PROGRESS_ERROR = {}
@@ -171,11 +177,6 @@ const record_win = record_match ('win')
 const record_draw = record_match ('draw')
 const record_loss = record_match ('loss')
 const record_bye = record_match ('bye')
-
-// TODOS
-// !score to check current personal score during a tournament
-// !validate should make sure that the cards are in the valid deck
-// prompt user with messages at each step
 
 ;(async () => {
   client.on ('ready',  () => {
@@ -356,7 +357,7 @@ const record_bye = record_match ('bye')
         // !sideboard same thing
         case `${config.prefix}sideboard`:
           registered_check ()
-          const sideboard = F.c (A.tail >> A.tail >> S.join (' ')) (split_message)
+          const sideboard = F.c (A.tail >> S.join (' ')) (split_message)
           if (! is_sideboard (sideboard)) {
             await send_message (`Expected sideboard to be in /cud format but was given "${sideboard}"`)
           }
@@ -465,6 +466,7 @@ const record_bye = record_match ('bye')
         // !next starts the next round of the tournament
         case `${config.prefix}next`:
         case `${config.admin_prefix}next`:
+          in_progress_check ()
           if (id !== leader && ! is_admin_command) {
             await (`You are not the tournament organizer`)
             return
