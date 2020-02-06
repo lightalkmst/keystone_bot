@@ -11,6 +11,7 @@ const validation = require ('./validation')
 
 const height = 256
 const width = 216
+const quality = 20
 
 const get_deck = user_id => async d => {
   await sharp ({
@@ -26,7 +27,7 @@ const get_deck = user_id => async d => {
       }
     }
   })
-  .jpeg ({ quality: 50 })
+  .jpeg ({ quality })
   .composite (
     F.p ([validation.get_master (d), ...validation.get_cards (d)]) (
       A.mapi (i => x => ({
@@ -56,7 +57,7 @@ const get_sideboard = user_id => async d => {
       }
     }
   })
-  .jpeg ({ quality: 50 })
+  .jpeg ({ quality })
   .composite (
     F.p (['', ...validation.get_cards (d)]) (
       A.mapi (i => x => ({
@@ -93,7 +94,7 @@ const get_decklist = user_id => async p => {
       }
     }
   })
-  .jpeg ({ quality: 50 })
+  .jpeg ({ quality })
   .composite (
     F.p (decks) (
       A.mapi (i => d =>
