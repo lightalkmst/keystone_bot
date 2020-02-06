@@ -15,14 +15,6 @@ const rules = config.rules
 const images = require ('./src/utils/images')
 const validation = require ('./src/utils/validation')
 
-// TODOS
-// !status count number of players in the tournament
-// !score to check current personal score during a tournament
-// !validate should make sure that the cards are in the valid deck
-// prompt user with messages at each step
-// fix validation error messages
-// omit master from sideboard
-
 const REGISTERED_ERROR = {}
 const NOT_REGISTERED_ERROR = {}
 const IN_PROGRESS_ERROR = {}
@@ -31,6 +23,7 @@ const NOT_PLAYING_ERROR = {}
 
 let in_progress = false
 let round = 1
+let leader = null
 let players =
   [
     // {
@@ -60,9 +53,7 @@ let players =
     //   points: 0
     // },
   ]
-
 let dropped = []
-let leader = null
 
 const is_cud = S.match (/^[a-zA-Z]*: ([a-zA-Z0-9-]+, ){0,9}[a-zA-Z0-9-]+$/)
 const is_sideboard = S.match (/^([a-zA-Z]*: |)([a-zA-Z0-9-]+, ){0,9}([a-zA-Z0-9-]+)$/)
@@ -273,14 +264,14 @@ const record_bye = record_match ('bye')
       await A.P.s.iteri (i => async x => {
         const win = A.length (A.filter (y => y.result === 'win') (x.matchups))
         const loss = A.length (A.filter (y => y.result === 'loss') (x.matchups))
-        const drew = A.length (A.filter (y => y.result === 'draw') (x.matchups))
-        await send_main_message (`${i + 1}) ${x.username}#${x.discriminator} [ ${x.points} points | ${win} W - ${loss} L - ${drew} D ]`)
+        const draw = A.length (A.filter (y => y.result === 'draw') (x.matchups))
+        await send_main_message (`${i + 1}) ${x.username}#${x.discriminator} [ ${x.points} points | ${win} W - ${loss} L - ${draw} D ]`)
       }) (players)
       await A.P.s.iteri (i => async x => {
         const win = A.length (A.filter (y => y.result === 'win') (x.matchups))
         const loss = A.length (A.filter (y => y.result === 'loss') (x.matchups))
-        const drew = A.length (A.filter (y => y.result === 'draw') (x.matchups))
-        await send_main_message (`${i + 1}) ${x.username}#${x.discriminator} [ ${x.points} points | ${win} W - ${loss} L - ${drew} D ] (dropped)`)
+        const draw = A.length (A.filter (y => y.result === 'draw') (x.matchups))
+        await send_main_message (`${i + 1}) ${x.username}#${x.discriminator} [ ${x.points} points | ${win} W - ${loss} L - ${draw} D ] (dropped)`)
       }) (dropped)
     }
 
@@ -328,9 +319,33 @@ const record_bye = record_match ('bye')
           }]
           await send_direct_messages ([
             `You have been registered for the next automated casual tournament`,
-            `Use !help to get a list of commands and their usages`,
+            `Read the format rules provided by ${config.prefix}format`,
+            `Submit the decks and sideboard that you will be using for this tournament with ${config.prefix}deck and ${config.prefix}sideboard`,
+            `Use ${config.prefix}help to get a list of commands and their usages`,
           ])
           await log_command ()
+          return
+        // !format gives a description of the tournament format
+        case `${config.prefix}format`:
+          await send_messages ([
+            `This bot uses The Challenger Leagues tournament format rules`,
+            `Deckbuilding:`,
+            `  Each player submits 4 decks and a sideboard`,
+            `  Each deck must have a master and 10 cards`,
+            `  Each master may only be included in 1 deck`,
+            `  Each deck may contain at most 1 copy of a card`,
+            `  Different decks may contain the same card`,
+            `  There must be no duplicate cards within a deck`,
+            `  The sideboard must contain ${rules.cards_in_sideboard} cards`,
+            `Playing:`,
+            `  Before each match, choose a deck that has not won a game in the set`,
+            `  Then, swap any number of the cards in the deck with cards from the sideboard`,
+            `  There must still be at most 1 copy of a card in the deck`,
+            `  The ${config.prefix}validate command may be used to check if the deck is valid`,
+            `The commands expect the /cud deck format from typing /cud in the game chat when the deck is assembled`,
+            `Bug: there is a known bug in the game client that does not update your master until you return to the main screen`,
+            `Ask any TCL staff member if clarification for anything is needed`,
+          ])
           return
         // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
         case `${config.prefix}deck`:
@@ -389,7 +404,7 @@ const record_bye = record_match ('bye')
         case `${config.prefix}validate`:
           // TODO: images for validations
           if (split_message.length > 1) {
-            const errors = validation.validate_deck (S.join (' ') (A.tail (split_message)))
+            const errors = validation.validate_match_deck (S.join (' ') (A.tail (split_message)))
             if (errors.length) {
               await send_messages ([`This deck has the following errors:`, ... errors])
               return
@@ -411,6 +426,7 @@ const record_bye = record_match ('bye')
         // !status lists out any players that aren't ready and what they are missing
         case `${config.prefix}status`:
           if (! in_progress) {
+            await send_message (`There are ${players.length} players registered for the next tournament`)
             const errors =
               F.p (players) (
                 A.map (x => ({
@@ -430,9 +446,10 @@ const record_bye = record_match ('bye')
           }
           const idle = A.filter (x => ! x.playing) (players)
           const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (players)
-          const won = A.filter (x => A.contains (x.matchups [0].result) (['win', 'bye'])) (players)
+          const won = A.filter (x => x.matchups [0].result === 'win') (players)
           const lost = A.filter (x => x.matchups [0].result === 'loss') (players)
           const drew = A.filter (x => x.matchups [0].result === 'draw') (players)
+          const bye = A.filter (x => x.matchups [0].result === 'bye') (players)
           await send_messages ([
             `The following players are idle:`,
             ... A.map (user_string) (idle),
@@ -444,6 +461,8 @@ const record_bye = record_match ('bye')
             ... A.map (user_string) (lost),
             `The following players have drawn their game:`,
             ... A.map (user_string) (drew),
+            `The following players received a bye:`,
+            ... A.map (user_string) (bye),
           ])
           return
         // !scoreboard to print out the current scores
@@ -461,7 +480,7 @@ const record_bye = record_match ('bye')
           not_in_progress_check ()
           in_progress = true
           leader = id
-          await send_message (`The tournament has begun`)
+          await send_main_message (`The tournament has begun`)
           // begin matchmaking
           round++
           players = swiss (shuffle (players))
@@ -492,6 +511,7 @@ const record_bye = record_match ('bye')
           round++
           players = swiss (shuffle (A.map (x => ({ ... x, playing: false })) (players)))
           await print_scoreboard ()
+          await send_main_message (`The next round of the tournament has begun`)
           // send direct message to each participant with their partner and respective decklists
           await announce_pairings ()
           await log_command ()
@@ -508,7 +528,11 @@ const record_bye = record_match ('bye')
               playing: true,
             },
           ]
-          await send_message (`You have been marked as present`)
+          await send_messages ([
+            `You have been marked as present`,
+            `Pick and modify your deck according to ${config.prefix}format instructions`,
+            `Once the set is over, report the match result with ${config.prefix}win, ${config.prefix}loss, or ${config.prefix}draw`,
+          ])
           await log_command ()
           return
         // !win/!loss/!draw to report the result
@@ -523,7 +547,10 @@ const record_bye = record_match ('bye')
             record_win (player),
             record_loss (A.find (x => x.id === opponent_id) (players)),
           ]
-          await send_message (`Your win has been recorded`)
+          await send_messages ([
+            `Your win has been recorded`,
+            `Wait for the next round to begin`,
+          ])
           await send_user_message (player.matchups [0].id, `Your opponent has recorded a loss for you`)
           await log_command ()
           return
@@ -538,7 +565,10 @@ const record_bye = record_match ('bye')
             record_loss (player),
             record_win (A.find (x => x.id === opponent_id) (players)),
           ]
-          await send_message (`Your loss has been recorded`)
+          await send_messages ([
+            `Your loss has been recorded`,
+            `Wait for the next round to begin`,
+          ])
           await send_user_message (player.matchups [0].id, `Your opponent has recorded a win for you`)
           await log_command ()
           return
@@ -553,9 +583,27 @@ const record_bye = record_match ('bye')
             record_win (player),
             record_loss (A.find (x => x.id === opponent_id) (players)),
           ]
-          await send_message (`Your draw has been recorded`)
+          await send_messages ([
+            `Your draw has been recorded`,
+            `Wait for the next round to begin`,
+          ])
           await send_user_message (player.matchups [0].id, `Your opponent has recorded a draw for you`)
           await log_command ()
+          return
+        // !score to view your current score
+        case `${config.prefix}score`:
+        case `${config.admin_prefix}score`:
+          registered_check ()
+          in_progress_check ()
+          const scored = score (player)
+          players = [
+            ... A.filter (x => x.id !== id) (players),
+            scored,
+          ]
+          const win = A.length (A.filter (x => x.result === 'win') (scored.matchups))
+          const loss = A.length (A.filter (x => x.result === 'loss') (scored.matchups))
+          const draw = A.length (A.filter (x => x.result === 'draw') (scored.matchups))
+          await send_message (`${scored.username}#${scored.discriminator} [ ${scored.points} points | ${win} W - ${loss} L - ${draw} D ]`)
           return
         // !drop to leave the tournament
         case `${config.prefix}drop`:
@@ -565,8 +613,13 @@ const record_bye = record_match ('bye')
             ... A.filter (x => x.id !== id && x.id !== opponent_id) (players),
             ... (opponent_id ? [record_bye (A.find (x => x.id === opponent_id) (players))] : []),
           ]
-          dropped = [... dropped, player]
+          if (in_progress) {
+            dropped = [... dropped, player]
+          }
           await send_message (`${is_admin_command ? 'Player has' : 'You have'} been dropped from this tournament`)
+          if (! is_admin_command) {
+            await send_user_message (id, `You have been dropped from this tournament`)
+          }
           // TODO: award win to opponent
           await log_command ()
           return
@@ -589,9 +642,9 @@ const record_bye = record_match ('bye')
             ])
             return
           }
-          await send_message (`The tournament has been ended`)
+          await send_main_message (`The tournament has ended`)
           await print_scoreboard ()
-          await send_message (`Please use ${config.prefix}welcome in the public bot channel after any further tournament conclusions`)
+          await send_direct_message (`Please use ${config.prefix}welcome in the public bot channel after any further tournament conclusions`)
           in_progress = false
           round = 1
           players = []
@@ -634,8 +687,8 @@ const record_bye = record_match ('bye')
             command: `decklist`,
             effect: `print out the current decklist and any errors`,
           }, {
-            command: `validate </cud>`,
-            effect: `check the deck for any errors`,
+            command: `validate [</cud>]`,
+            effect: `check the decklist for errors if no /cud is provided, otherwise check the deck for any errors`,
           }, {
             command: `status`,
             effect: `print out the current status of each player in the tournament`,
@@ -667,6 +720,10 @@ const record_bye = record_match ('bye')
             command: `draw`,
             effect: `report that you drew your match`,
             has_admin_version: true,
+          }, {
+            check: in_progress,
+            command: `score`,
+            effect: `shows your current score for the tournament`,
           }, {
             command: `drop`,
             effect: `withdraw from the tournament`,

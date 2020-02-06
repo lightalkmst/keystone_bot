@@ -72,7 +72,6 @@ const validate_decks = p => {
       A.map (F['+'] ('deck'))
       >> A.map (F.swap (D.get) (p))
     )
-  F.log (decks)
   const deck_validations =
     F.p (decks) (
       A.map (validate_deck)
@@ -90,7 +89,7 @@ const validate_decks = p => {
           >> F['!='] (4)
         )
       ),
-      message: 'You may not use duplicate masters',
+      message: 'May not use duplicate masters',
     // }, {
     //   check: config.disable_cross_deck_duplicates && F.p (decks) (A.filter (is_cud) >> A.map (get_cards) >> A.fold (A.append) ([]) >> uniq >> A.length >> F['!='] (40)),
     //   message: 'You may not use duplicate cards across decks',
@@ -103,6 +102,31 @@ const validate_decks = p => {
     ...sideboard_validations,
     ...cross_deck_validations,
   ])
+}
+
+const validate_match_deck = p => d => {
+  const decks =
+    F.p (A.range (1) (rules.number_of_decks)) (
+      A.map (F['+'] ('deck'))
+      >> A.map (F.swap (D.get) (p))
+      >> A.filter (F.id)
+    )
+  const deck = A.try_find (x => get_master (x) === get_master (d)) (decks)
+  if (! deck) {
+    return ['Uses a master that was not submitted']
+  }
+  const cards = get_cards (d)
+  const missing = A.filter (F.swap (A.contains) ([... get_cards (deck), ... get_cards (p.sideboard)])) (cards)
+  return F.p ([{
+    check: missing.length,
+    message: `Has cards that are not in the master's deck or sideboard: ${S.join (', ') (missing)}`,
+  }, {
+    check: uniq (cards).length < 10,
+    message: 'Has duplicate cards',
+  }]) (
+    A.filter (D.get ('check'))
+    >> A.map (D.get ('message'))
+  )
 }
 
 module.exports = {
