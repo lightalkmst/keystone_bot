@@ -241,7 +241,12 @@ const record_draw = record_match ('draw')
 const record_loss = record_match ('loss')
 const record_drop = record_match ('drop')
 
+let dirty = false
 const save_state = async () => {
+  if (! dirty) {
+    return
+  }
+
   const state = {
     in_progress,
     round,
@@ -259,6 +264,9 @@ const save_state = async () => {
     Body: JSON.stringify (state, null, 2),
   })
   .promise ()
+  dirty = false
+
+  console.log ('saved')
 }
 
 const load_state = async () => {
@@ -444,6 +452,7 @@ const load_state = async () => {
             `Use ${config.prefix}help to get a list of commands and their usages`,
           ])
           await log_command ()
+          dirty = true
           return
         // !join to join the next tournament
         case `${config.prefix}join`:
@@ -465,6 +474,7 @@ const load_state = async () => {
             `Add other players to your team with ${config.prefix}team`,
             `Use ${config.prefix}help to get a list of commands and their usages`,
           ])
+          dirty = true
           return
         // set teammates
         case `${config.prefix}team`:
@@ -472,6 +482,7 @@ const load_state = async () => {
           joined_check ()
           not_in_progress_check ()
           // TODO: get users from message mentions
+          dirty = true
           return
         // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
         case `${config.prefix}deck`:
@@ -487,6 +498,7 @@ const load_state = async () => {
           player_entry.decks [n - 1] = url
           await send_message (`Successfully submit deck ${n}`)
           await send_log_message (`${user_string (message.author)} - ${new Date ().toLocaleTimeString ('en-US')}: ${message.content} ${url}`)
+          dirty = true
           return
         // !decklist to provide decklist printout
         case `${config.prefix}decks`:
@@ -546,6 +558,7 @@ const load_state = async () => {
               await send_message (`Matchmaking mode has been set to double elimination`)
               break
           }
+          dirty = true
           return
         // !start closes registration and starts the tournament
         case `${config.prefix}start`:
@@ -564,6 +577,7 @@ const load_state = async () => {
           // send direct message to each participant with their partner and respective decklists
           await announce_pairings ()
           await log_command ()
+          dirty = true
           return
         // !next starts the next round of the tournament
         case `${config.prefix}next`:
@@ -596,6 +610,7 @@ const load_state = async () => {
           // send direct message to each participant with their partner and respective decklists
           await announce_pairings ()
           await log_command ()
+          dirty = true
           return
         // !play signals that the match for the player and their partner has started so the bot can nag people that haven't started their game
         case `${config.prefix}play`:
@@ -609,6 +624,7 @@ const load_state = async () => {
             `Once the set is over, report the match result with ${config.prefix}win, ${config.prefix}loss, or ${config.prefix}draw`,
           ])
           await log_command ()
+          dirty = true
           return
         // !win/!loss/!draw to report the result
         case `${config.prefix}win`:
@@ -625,6 +641,7 @@ const load_state = async () => {
           ])
           await send_user_message (player.matchups [0].id, `Your opponent has recorded a loss for you`)
           await log_command ()
+          dirty = true
           return
         case `${config.prefix}loss`:
         case `${config.admin_prefix}loss`:
@@ -640,6 +657,7 @@ const load_state = async () => {
           ])
           await send_user_message (player.matchups [0].id, `Your opponent has recorded a win for you`)
           await log_command ()
+          dirty = true
           return
         case `${config.prefix}draw`:
         case `${config.admin_prefix}draw`:
@@ -655,6 +673,7 @@ const load_state = async () => {
           ])
           await send_user_message (player.matchups [0].id, `Your opponent has recorded a draw for you`)
           await log_command ()
+          dirty = true
           return
         // !score to view your current score
         case `${config.prefix}score`:
@@ -686,6 +705,7 @@ const load_state = async () => {
             await send_user_message (id, `You have been dropped from this tournament`)
           }
           await log_command ()
+          dirty = true
           return
         // !end to end the tournament
         case `${config.prefix}end`:
@@ -708,6 +728,7 @@ const load_state = async () => {
           }
           await cleanup ()
           await log_command ()
+          dirty = true
           return
         // !delegate to pass tournament leadership
         case `${config.prefix}delegate`:
@@ -719,11 +740,13 @@ const load_state = async () => {
           leader = split_message [is_admin_command ? 2 : 1]
           await send_message (`The new tournament organizer has been chosen`)
           await log_command ()
+          dirty = true
           return
         // !mmr to set mmr
         case `${config.admin_prefix}mmr`:
           player.mmr = ~~ split_message [1]
           await send_message (`The MMR for ${player.id} has been set to ${split_message [1]}`)
+          dirty = true
           return
         // !help list available commands
         case `${config.prefix}help`: {
