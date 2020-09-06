@@ -4,6 +4,7 @@ package-lock.json
 
 # private stuff
 config.js
+credentials.js
 
 # temporary stuff
 /output/
