@@ -21,7 +21,6 @@ const NOT_PLAYING_ERROR = {}
 
 let in_progress = false
 let round = 1
-let leader = null
 /*
 {
   id: string,
@@ -250,7 +249,6 @@ const save_state = async () => {
   const state = {
     in_progress,
     round,
-    leader,
     players,
     joined,
     dropped,
@@ -284,7 +282,6 @@ const load_state = async () => {
     ;({
       in_progress,
       round,
-      leader,
       players,
       joined,
       dropped,
@@ -432,7 +429,7 @@ const load_state = async () => {
             `This is the automated tournament bot for CommuniTeam Esports`,
             `All players that would like to participate should register with the bot using !register`,
             `After registering, the bot will work in private messages`,
-            `After all players have registered, the tournament leader starts the tournament with !start`,
+            `After all players have registered, a tournament organizer starts the tournament with !start`,
             `Use !help to get a list of commands and their usages`,
           ])
           return
@@ -569,7 +566,6 @@ const load_state = async () => {
           }
           not_in_progress_check ()
           in_progress = true
-          leader = id
           await send_main_message (`The tournament has begun`)
           // begin matchmaking
           round++
@@ -583,8 +579,8 @@ const load_state = async () => {
         case `${config.prefix}next`:
         case `${config.admin_prefix}next`:
           in_progress_check ()
-          if (id !== leader && ! is_admin_command) {
-            await (`You are not the tournament organizer`)
+          if (! is_admin_command) {
+            await (`You are not a tournament organizer`)
             return
           }
           if (A.exists (x => x.matchups [0].result === 'pending') (joined)) {
@@ -711,8 +707,8 @@ const load_state = async () => {
         case `${config.prefix}end`:
         case `${config.admin_prefix}end`:
           in_progress_check ()
-          if (id !== leader && ! is_admin_command) {
-            await (`You are not the tournament organizer`)
+          if (! is_admin_command) {
+            await (`You are not a tournament organizer`)
             return
           }
           if (A.exists (x => x.matchups [0].result === 'pending') (joined)) {
@@ -730,18 +726,6 @@ const load_state = async () => {
           await log_command ()
           dirty = true
           return
-        // !delegate to pass tournament leadership
-        case `${config.prefix}delegate`:
-        case `${config.admin_prefix}delegate`:
-          if (id !== leader && ! is_admin_command) {
-            await (`You are not the tournament organizer`)
-            return
-          }
-          leader = split_message [is_admin_command ? 2 : 1]
-          await send_message (`The new tournament organizer has been chosen`)
-          await log_command ()
-          dirty = true
-          return
         // !mmr to set mmr
         case `${config.admin_prefix}mmr`:
           player.mmr = ~~ split_message [1]
@@ -755,7 +739,7 @@ const load_state = async () => {
           }
           // TODO: add new commands
           await F.p ([{
-            check: ! in_progress,
+            check: false,
             command: `welcome`,
             effect: `print out the initial explanation of the bot`,
           }, {
@@ -789,11 +773,11 @@ const load_state = async () => {
             command: `mode <swiss|double_elimination>`,
             effect: `sets the format for the next tournament`,
           }, {
-            check: ! in_progress && id === leader,
+            check: false,
             command: `start`,
             effect: `begin the tournament and designate the user of this command as the tournament organizer`,
           }, {
-            check: in_progress && id === leader,
+            check: false,
             command: `next`,
             effect: `begin the next round in the tournament unless there are players that are not ready`,
             has_admin_version: true,
@@ -825,14 +809,9 @@ const load_state = async () => {
             effect: `withdraw from the tournament`,
             has_admin_version: true,
           }, {
-            check: in_progress && id === leader,
+            check: false,
             command: `end`,
             effect: `end the tournament and print out the scoreboard`,
-            has_admin_version: true,
-          }, {
-            check: id === leader,
-            command: `delegate <id>`,
-            effect: `designate the target of the command as the new tournament organizer using their discord id`,
             has_admin_version: true,
           }, {
             command: `help`,
@@ -840,7 +819,6 @@ const load_state = async () => {
           }]) (
             A.filter (x => x.check || is_admin)
             >> A.map (({
-              check = true,
               command,
               effect,
               has_admin_version = false,
