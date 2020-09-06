@@ -338,7 +338,7 @@ const load_state = async () => {
 
     const log_command = async () =>
       (await client.channels.get (config.log_channel_id))
-      .send (`${user_string (message.author)} - ${new Date ().toLocaleTimeString ('en-US')}: ${message.content}`)
+      .send (`<@${user_id}> - ${new Date ().toLocaleTimeString ('en-US')}: ${message.content}`)
     const no_player_error = async () => await send_message (`${is_admin_command ? 'Player has' : 'You have'} not registered for this tournament with !register yet`)
 
     const announce_pairings = () =>
@@ -696,14 +696,11 @@ const load_state = async () => {
         case `${config.admin_prefix}drop`:
           registered_check ()
           joined_check ()
-          A.find (x => x.id === player.id) (joined).matchups [0].result === 'pending' && record_drop (player)
           if (in_progress) {
+            A.find (x => x.id === player.id) (joined).matchups [0].result === 'pending' && record_drop (player)
             dropped = [... dropped, player]
           }
           await send_message (`${is_admin_command ? 'Player has' : 'You have'} been dropped from this tournament`)
-          if (! is_admin_command) {
-            await send_user_message (id, `You have been dropped from this tournament`)
-          }
           await log_command ()
           dirty = true
           return
