@@ -752,8 +752,8 @@ const load_state = async () => {
             effect: `add another player to your team`,
           }, {
             check: ! in_progress,
-            command: `deck <slot> </cud>`,
-            effect: `submit a deck in the chosen slot, taking the /cud deck format from the game client`,
+            command: `deck <slot>`,
+            effect: `submit a deck in the chosen slot from an image attachment`,
           }, {
             command: `decks`,
             effect: `review your submitted decks`,
