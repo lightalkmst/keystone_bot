@@ -334,7 +334,7 @@ const load_state = async () => {
 
     const log_command = async () =>
       (await client.channels.get (config.log_channel_id))
-      .send (`<@${user_id}> - ${new Date ().toLocaleTimeString ('en-US')}: ${message.content}`)
+      .send (`${user_id} | <@${user_id}> - ${new Date ().toLocaleTimeString ('en-US')}: ${message.content}`)
     const no_player_error = async () => await send_message (`${is_admin_command ? 'Player has' : 'You have'} not registered for this tournament with !register yet`)
 
     const announce_pairings = () =>
@@ -389,15 +389,31 @@ const load_state = async () => {
       await send_main_message (`The tournament has ended`)
       await print_scoreboard ()
       await send_direct_message (`Please use ${config.prefix}welcome in the public bot channel after any further tournament conclusions`)
-      // TODO: calculate mmr and add to match history
-      // players = A.map (x => {
-      //   const pjoin = A.try_find (y => y.id === x.id) (players)
-      //   if (! pjoin) {
-      //     return x
-      //   }
-      //
-      // }) (players)
-
+      players = A.map (x => {
+        const pjoin = A.try_find (y => y.id === x.id) (players)
+        if (! pjoin) {
+          return x
+        }
+        const mmr_deltas = A.map (y => {
+          const o = A.find (z => z.id === z.id)
+          const pr = Math.pow (10, y.mmr / 400)
+          const or = Math.pow (10, o.mmr / 400)
+          const pe = pr / (pr + or)
+          const ps = {
+            win: 1,
+            loss: 0,
+            draw: 0.5,
+            drop: pe,
+            bye: pe,
+          } [y.result]
+          return Math.floor (rules.mmr_k_value * (ps - pe))
+        }) (pjoin.matchups)
+        return {
+          ... x,
+          mmr: A.fold (F['+']) (x.mmr) (mmr_deltas),
+          history: A.map (x => ({... x [0], change: x [1]})) (A.zip (pjoin.matchups) (mmr_deltas))
+        }
+      }) (players)
       in_progress = false
       round = 1
       joined = []
