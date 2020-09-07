@@ -318,6 +318,7 @@ const load_state = async () => {
     const send_log_message = async (s, opts) => (await client.channels.get (config.log_channel_id)).send (s, opts)
     const is_admin = A.contains (message.author.id) (config.admins)
     const split_message = S.split (' ') (message.content)
+    const n = split_message [1]
     const command = split_message [0]
     const is_admin_command = S.match (new RegExp (`^${config.admin_prefix}`)) (command)
     if (is_admin_command && ! is_admin) {
@@ -477,7 +478,6 @@ const load_state = async () => {
           registered_check ()
           joined_check ()
           not_in_progress_check ()
-          const n = split_message [1]
           if (! S.match (/^([0-9]+)$/) (n) && ~~n >= 1 && ~~n < rules.players_per_team && (~~n === 1 || player_entry.team [n - 2])) {
             await send_message (`Expected team slot to be between 1 and ${rules.players_per_team} but was given "${n}"`)
             return
@@ -493,7 +493,6 @@ const load_state = async () => {
           registered_check ()
           joined_check ()
           not_in_progress_check ()
-          const n = split_message [1]
           if (! S.match (/^([0-9]+)$/) (n) && ~~n >= 1 && ~~n <= rules.number_of_decks && (~~n === 1 || player_entry.decks [n - 2])) {
             await send_message (`Expected deck slot to be between 1 and ${rules.number_of_decks} but was given "${n}"`)
             return
