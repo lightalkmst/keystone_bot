@@ -413,8 +413,8 @@ const load_state = async () => {
     }
     const registered_check = check (NOT_REGISTERED_ERROR) (player)
     const not_registered_check = check (REGISTERED_ERROR) (! player)
-    const joined_check = check (NOT_JOINED_ERROR) (A.exists (x => x.id === (player && player.id)) (joined))
-    const not_joined_check = check (JOINED_ERROR) (A.for_all (x => x.id !== (player && player.id)) (joined))
+    const joined_check = check (NOT_JOINED_ERROR) (A.exists (x => x.id === (player && player.id) || A.contains (player && player.id) (x.team)) (joined))
+    const not_joined_check = check (JOINED_ERROR) (A.for_all (x => x.id !== (player && player.id) && ! A.contains (player && player.id) (x.team)) (joined))
     const in_progress_check = check (NOT_IN_PROGRESS_ERROR) (in_progress)
     const not_in_progress_check = check (IN_PROGRESS_ERROR) (! in_progress)
     const playing_check = check (NOT_PLAYING_ERROR) (player && player.playing)
@@ -456,7 +456,6 @@ const load_state = async () => {
           not_in_progress_check ()
           registered_check ()
           not_joined_check ()
-          // TODO: check that player is not on a team
           joined = [... joined, {
             id: player.id,
             team: [],
@@ -478,14 +477,19 @@ const load_state = async () => {
           registered_check ()
           joined_check ()
           not_in_progress_check ()
-          if (! S.match (/^([0-9]+)$/) (n) && ~~n >= 1 && ~~n < rules.players_per_team && (~~n === 1 || player_entry.team [n - 2])) {
-            await send_message (`Expected team slot to be between 1 and ${rules.players_per_team} but was given "${n}"`)
+          if (player_entry.team.length >= rules.players_per_team - 1) {
+            await send_message (`Exceeded number of players per team: ${rules.players_per_team}`)
             return
           }
-          // TODO: get users from message mentions
-          // parse message
-          // regex check for discord id or mention
-          // check that other player has not joined tournament
+          if (! user.message.mentions.users.array () [0]) {
+            await send_message (`Expected a user mention but was not given one`)
+            return
+          }
+          if (A.exists (x => x.id === user.message.mentions.users.array () [0].id || A.contains (user.message.mentions.users.array () [0].id) (x.team)) (joined)) {
+            await send_message (`That player has already joined the tournament and may not join a team unless they drop`)
+            return
+          }
+          player_entry.team = [... player_entry.team, user.message.mentions.users.array () [0].id]
           dirty = true
           return
         // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
