@@ -481,15 +481,15 @@ const load_state = async () => {
             await send_message (`Exceeded number of players per team: ${rules.players_per_team}`)
             return
           }
-          if (! user.message.mentions.users.array () [0]) {
+          if (! message.mentions.users.array () [0]) {
             await send_message (`Expected a user mention but was not given one`)
             return
           }
-          if (A.exists (x => x.id === user.message.mentions.users.array () [0].id || A.contains (user.message.mentions.users.array () [0].id) (x.team)) (joined)) {
+          if (A.exists (x => x.id === message.mentions.users.array () [0].id || A.contains (message.mentions.users.array () [0].id) (x.team)) (joined)) {
             await send_message (`That player has already joined the tournament and may not join a team unless they drop`)
             return
           }
-          player_entry.team = [... player_entry.team, user.message.mentions.users.array () [0].id]
+          player_entry.team = [... player_entry.team, message.mentions.users.array () [0].id]
           dirty = true
           return
         // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
