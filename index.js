@@ -263,8 +263,6 @@ const save_state = async () => {
   })
   .promise ()
   dirty = false
-
-  console.log ('saved')
 }
 
 const load_state = async () => {
@@ -427,9 +425,10 @@ const load_state = async () => {
           not_in_progress_check ()
           await send_main_messages ([
             `This is the automated tournament bot for CommuniTeam Esports`,
-            `All players that would like to participate should register with the bot using !register`,
+            `All players that want to participate should register with the bot using ${config.prefix}register`,
             `After registering, the bot will work in private messages`,
-            `After all players have registered, a tournament organizer starts the tournament with !start`,
+            `Players that want to join the next tournament should join with the bot using ${config.prefix}join`,
+            `After all players have registered and joined, a tournament organizer starts the tournament with ${config.prefix}start`,
             `Use !help to get a list of commands and their usages`,
           ])
           return
@@ -444,8 +443,8 @@ const load_state = async () => {
             history: [],
           }]
           await send_direct_messages ([
-            `You have been registered for the next automated tournament`,
-            `Submit the decks and sideboard that you will be using for this tournament with ${config.prefix}deck and ${config.prefix}sideboard`,
+            `Your account has been registered`,
+            `Join the next tournament by using ${config.prefix}join`,
             `Use ${config.prefix}help to get a list of commands and their usages`,
           ])
           await log_command ()
@@ -456,6 +455,7 @@ const load_state = async () => {
           not_in_progress_check ()
           registered_check ()
           not_joined_check ()
+          // TODO: check that player is not on a team
           joined = [... joined, {
             id: player.id,
             team: [],
@@ -466,7 +466,6 @@ const load_state = async () => {
           }]
           await send_direct_messages ([
             `You have joined for the next automated casual tournament`,
-            `Read the format rules provided by ${config.prefix}format`,
             `Submit the decks that you will be using for this tournament with ${config.prefix}deck`,
             `Add other players to your team with ${config.prefix}team`,
             `Use ${config.prefix}help to get a list of commands and their usages`,
@@ -478,7 +477,15 @@ const load_state = async () => {
           registered_check ()
           joined_check ()
           not_in_progress_check ()
+          const n = split_message [1]
+          if (! S.match (/^([0-9]+)$/) (n) && ~~n >= 1 && ~~n < rules.players_per_team && (~~n === 1 || player_entry.team [n - 2])) {
+            await send_message (`Expected team slot to be between 1 and ${rules.players_per_team} but was given "${n}"`)
+            return
+          }
           // TODO: get users from message mentions
+          // parse message
+          // regex check for discord id or mention
+          // check that other player has not joined tournament
           dirty = true
           return
         // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
