@@ -1,7 +1,6 @@
 const Discord = require ('discord.js')
 const client = new Discord.Client ()
 const fs = require ('fs')
-const edmondsBlossom = require ('edmonds-blossom')
 const { promisify } = require ('util')
 const AWS = require ('aws-sdk')
 const S3 = new AWS.S3 (require ('./credentials'))
@@ -13,26 +12,26 @@ global.config = config
 const rules = config.rules
 global.rules = rules
 
-const welcome = require ('./src/welcome')
-const register = require ('./src/register')
-const join = require ('./src/join')
-const team = require ('./src/team')
-const teammates = require ('./src/teammates')
-const deck = require ('./src/deck')
-const decks = require ('./src/decks')
-const status = require ('./src/status')
-const scoreboard = require ('./src/scoreboard')
-const leaderboard = require ('./src/leaderboard')
-const mode = require ('./src/mode')
-const start = require ('./src/start')
-const next = require ('./src/next')
-const play = require ('./src/play')
-const record = require ('./src/record')
-const score = require ('./src/score')
-const drop = require ('./src/drop')
-const end = require ('./src/end')
-const mmr = require ('./src/mmr')
-const help = require ('./src/help')
+const welcome = require ('./src/handlers/welcome')
+const register = require ('./src/handlers/register')
+const join = require ('./src/handlers/join')
+const team = require ('./src/handlers/team')
+const teammates = require ('./src/handlers/teammates')
+const deck = require ('./src/handlers/deck')
+const decks = require ('./src/handlers/decks')
+const status = require ('./src/handlers/status')
+const scoreboard = require ('./src/handlers/scoreboard')
+const leaderboard = require ('./src/handlers/leaderboard')
+const mode = require ('./src/handlers/mode')
+const start = require ('./src/handlers/start')
+const next = require ('./src/handlers/next')
+const play = require ('./src/handlers/play')
+const record = require ('./src/handlers/record')
+const score = require ('./src/handlers/score')
+const drop = require ('./src/handlers/drop')
+const end = require ('./src/handlers/end')
+const mmr = require ('./src/handlers/mmr')
+const help = require ('./src/handlers/help')
 
 global.REGISTERED_ERROR = {}
 global.NOT_REGISTERED_ERROR = {}
@@ -109,121 +108,8 @@ global.seed = joined => {
   return players3
 }
 
-// swiss pairing
-const swiss = players => {
-  const maxDiff = round * 3
-
-  const matches = (() => {
-    const matches = []
-    for (let i = 0; players [i]; i++) {
-      for (let i2 = i + 1; players [i2]; i2++) {
-        matches.push ([i, i2, A.for_all (x => x.id !== players [i2].id) (players [i].matchups) ? maxDiff - Math.abs (players [i].points - players [i2].points) : 0])
-      }
-    }
-    return edmondsBlossom (matches)
-  }) ()
-
-  return A.mapi (i => x => ({
-    ... x,
-    matchups: [
-      matches [i] === -1
-      ? {
-        result: 'bye',
-      }
-      : {
-        id: players [matches [i]].id,
-        result: 'pending',
-      },
-      ... x.matchups,
-    ],
-    playing: matches [i] === -1,
-  })) (players)
-}
-
-let brackets = null
-const double_elim = players => {
-  const get_matchups = () => {
-    return A.mapi (i => x => {
-      const wi = A.try_find_index (y => y.id === x.id) (brackets.winners)
-      if (wi) {
-        return {
-          ... x,
-          matchups: [
-            brackets.winners [wi % 2 ? wi + 1 : wi - 1]
-            ? {
-              id: brackets.winners [wi % 2 ? wi + 1 : wi - 1].id,
-              result: 'pending',
-            }
-            : {result: 'bye'}
-          ]
-        }
-      }
-      const li = A.try_find_index (y => y.id === x.id) (brackets.winners)
-      if (li) {
-        return {
-          ... x,
-          matchups: [
-            brackets.losers [li % 2 ? li + 1 : li - 1]
-            ? {
-              id: brackets.losers [li % 2 ? li + 1 : li - 1].id,
-              result: 'pending',
-            }
-            : {result: 'bye'}
-          ]
-        }
-      }
-      return {result: 'bye'}
-    })
-  }
-
-  // generates bracket on first run, just updates and outputs resulting matches in subsequent runs
-  if (! brackets) {
-    const players2 = seed (players)
-    brackets = {
-      winners: A.map (x => x && x.id) (players2),
-      losers: [],
-    }
-    return get_matchups ()
-  }
-
-  const pred_won_round = player_id => {
-    const join = A.try_find (x => x.id === player_id) (joined)
-    return join && A.contains (join.matchups [0].result) (['win', 'bye'])
-  }
-
-  if (brackets.winners.length) {
-    brackets = {
-      winners: A.filter (pred_won_round) (brackets.winners),
-      losers: A.fold (a => h => [... a, h [0], h [1]]) ([]) (A.zip (A.filter (pred_won_round) (brackets.losers)) (A.rev (A.filter (F.neg (pred_won_round)) (brackets.winners)))),
-    }
-  }
-  else {
-    brackets = {
-      ... brackets,
-      losers: A.filter (pred_won_round) (brackets.losers),
-    }
-  }
-
-  if (brackets.winners.length === 1 && brackets.losers.length === 1) {
-    const wid = brackets.winners [0].id
-    const lid = brackets.losers [0].id
-    return A.map (x =>
-      x.id === wid
-      ? {
-        id: lid,
-        result: 'pending',
-      }
-      : x.id === lid
-      ? {
-        id: wid,
-        result: 'pending',
-      }
-      : {result: 'bye'}
-    ) (joined)
-  }
-
-  return get_matchups ()
-}
+const swiss = require ('./src/matchmakers/swiss')
+const double_elim = require ('./src/matchmakers/double_elimination')
 
 global.matchmaker = swiss
 
@@ -234,20 +120,13 @@ const record_match = result => p => {
   pjoin.matchups [0].result = result
   pjoin.playing = true
   pjoin.points = undefined
-  switch (result) {
-    case 'win':
-      ojoin.matchups [0].result = 'loss'
-      break
-    case 'loss':
-      ojoin.matchups [0].result = 'win'
-      break
-    case 'draw':
-      ojoin.matchups [0].result = 'draw'
-      break
-    case 'drop':
-      ojoin.matchups [0].result = 'bye'
-      break
-  }
+  ojoin.matchups [0].result =
+    F.match (result)
+    .case ('win') (F.const ('loss'))
+    .case ('loss') (F.const ('win'))
+    .case ('draw') (F.const ('draw'))
+    .case ('drop') (F.const ('bye'))
+    .end ()
   ojoin.playing = true
   ojoin.points = undefined
 }
@@ -310,6 +189,36 @@ const load_state = async () => {
     console.log ('err:', err.message)
   }
 }
+
+const router = command => // TODO: simplify into object selection
+  F.match (command)
+  .case (`${config.prefix}welcome`) (() => welcome)
+  .case (`${config.prefix}register`) (() => register)
+  .case (`${config.prefix}join`) (() => join)
+  .case (`${config.prefix}team`) (() => team)
+  .case (`${config.prefix}teammates`) (() => teammates)
+  .case (`${config.prefix}deck`) (() => deck)
+  .case (`${config.prefix}decks`) (() => decks)
+  .case (`${config.prefix}status`) (() => status)
+  .case (`${config.prefix}scoreboard`) (() => scoreboard)
+  .case (`${config.prefix}leaderboard`) (() => leaderboard)
+  .case (`${config.admin_prefix}mode`) (() => mode)
+  .case (`${config.admin_prefix}start`) (() => start)
+  .case (`${config.admin_prefix}next`) (() => next)
+  .case (`${config.prefix}play`) (() => play)
+  .case (`${config.prefix}win`) (() => record)
+  .case (`${config.admin_prefix}win`) (() => record)
+  .case (`${config.prefix}lose`) (() => record)
+  .case (`${config.admin_prefix}lose`) (() => record)
+  .case (`${config.prefix}draw`) (() => record)
+  .case (`${config.admin_prefix}draw`) (() => record)
+  .case (`${config.prefix}score`) (() => score)
+  .case (`${config.prefix}drop`) (() => drop)
+  .case (`${config.admin_prefix}drop`) (() => drop)
+  .case (`${config.admin_prefix}end`) (() => end)
+  .case (`${config.admin_prefix}mmr`) (() => mmr)
+  .case (`${config.prefix}help`) (() => help)
+  .default (() => async () => await send_message (`That is not a valid command\nUse ${config.prefix}help to list available commands`)) // TODO: help message to use help
 
 ;(async () => {
   await load_state ()
@@ -450,7 +359,7 @@ const load_state = async () => {
     const in_progress_check = check (NOT_IN_PROGRESS_ERROR) (in_progress)
     const not_in_progress_check = check (IN_PROGRESS_ERROR) (! in_progress)
     const playing_check = check (NOT_PLAYING_ERROR) (player && player.playing)
-    const captain_check = check (NOT_CAPTAIN_ERROR) (captain && captain.id === player.id)
+    const captain_check = check (NOT_CAPTAIN_ERROR) (captain && captain.id === player.id) // TODO: fix for when player hasn't joined yet
 
     const messaging = {
       send_message,
@@ -500,36 +409,7 @@ const load_state = async () => {
     }
 
     try {
-      const handler =
-        F.match (command)
-        .case (`${config.prefix}welcome`) (() => welcome)
-        .case (`${config.prefix}register`) (() => register)
-        .case (`${config.prefix}join`) (() => join)
-        .case (`${config.prefix}team`) (() => team)
-        .case (`${config.prefix}teammates`) (() => teammates)
-        .case (`${config.prefix}deck`) (() => deck)
-        .case (`${config.prefix}decks`) (() => decks)
-        .case (`${config.prefix}status`) (() => status)
-        .case (`${config.prefix}scoreboard`) (() => scoreboard)
-        .case (`${config.prefix}leaderboard`) (() => leaderboard)
-        .case (`${config.admin_prefix}mode`) (() => mode)
-        .case (`${config.admin_prefix}start`) (() => start)
-        .case (`${config.admin_prefix}next`) (() => next)
-        .case (`${config.prefix}play`) (() => play)
-        .case (`${config.prefix}win`) (() => record)
-        .case (`${config.admin_prefix}win`) (() => record)
-        .case (`${config.prefix}lose`) (() => record)
-        .case (`${config.admin_prefix}lose`) (() => record)
-        .case (`${config.prefix}draw`) (() => record)
-        .case (`${config.admin_prefix}draw`) (() => record)
-        .case (`${config.prefix}score`) (() => score)
-        .case (`${config.prefix}drop`) (() => drop)
-        .case (`${config.admin_prefix}drop`) (() => drop)
-        .case (`${config.admin_prefix}end`) (() => end)
-        .case (`${config.admin_prefix}mmr`) (() => mmr)
-        .case (`${config.prefix}help`) (() => help)
-        .default (() => async () => await send_message (`That is not a valid command\nUse ${config.prefix}help to list available commands`)) // TODO: help message to use help
-      await handler ({
+      await router (command) ({
         messaging,
         info,
         util,
@@ -571,6 +451,4 @@ const load_state = async () => {
   })
 
   client.login (config.bot_token)
-
-  F.log ('Start expending mana! Go, go, go!')
 }) ()

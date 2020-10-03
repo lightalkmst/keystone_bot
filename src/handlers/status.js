@@ -24,18 +24,19 @@ module.exports = async ({
   const lost = A.filter (x => x.matchups [0].result === 'loss') (joined)
   const drew = A.filter (x => x.matchups [0].result === 'draw') (joined)
   const bye = A.filter (x => x.matchups [0].result === 'bye') (joined)
+  const get_player_string = F.c () (D.get ('id') >> get_player_by_id >> user_string)
   await send_messages ([
     `The following players are idle:`,
-    ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (idle),
+    ... A.map (get_player_string) (idle),
     `The following players are playing:`,
-    ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (playing),
+    ... A.map (get_player_string) (playing),
     `The following players have won their game:`,
-    ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (won),
+    ... A.map (get_player_string) (won),
     `The following players have lost their game:`,
-    ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (lost),
+    ... A.map (get_player_string) (lost),
     `The following players have drawn their game:`,
-    ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (drew),
+    ... A.map (get_player_string) (drew),
     `The following players received a bye:`,
-    ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (bye),
+    ... A.map (get_player_string) (bye),
   ])
 }
