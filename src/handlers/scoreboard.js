@@ -2,11 +2,10 @@
 module.exports = async ({
   messaging: {
     log_command,
-  },
-  info,
-  util: {
     print_scoreboard,
   },
+  info,
+  util,
   checks: {
     in_progress_check,
   },

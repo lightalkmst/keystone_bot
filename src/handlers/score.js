@@ -4,33 +4,15 @@ module.exports = async ({
     send_message,
   },
   info,
-  util,
+  util: {
+    score,
+  },
   checks: {
     registered_check,
     joined_check,
     in_progress_check,
   },
 }) => {
-  const score = p =>
-    p.points !== undefined
-    ? p
-    : {
-      ... p,
-      points:
-        F.p (p.matchups) (
-          A.map (x =>
-            F.match (x.result)
-            .case ('win') (() => rules.points_per_win)
-            .case ('loss') (() => rules.points_per_loss)
-            .case ('draw') (() => rules.points_per_draw)
-            .case ('bye') (() => rules.points_per_win)
-            .case ('drop') (() => rules.points_per_loss)
-            .default (() => 0)
-          )
-          >> A.fold (F ['+']) (0)
-        )
-      ,
-    }
   registered_check ()
   joined_check ()
   in_progress_check ()

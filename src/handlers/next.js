@@ -4,6 +4,8 @@ module.exports = async ({
     send_messages,
     send_main_message,
     log_command,
+    print_scoreboard,
+    announce_pairings,
   },
   info: {
     is_admin_command,
@@ -11,8 +13,7 @@ module.exports = async ({
   util: {
     user_string,
     get_player_by_id,
-    print_scoreboard,
-    announce_pairings,
+    shuffle,
   },
   checks: {
     in_progress_check

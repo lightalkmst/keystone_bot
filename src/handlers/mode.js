@@ -1,3 +1,6 @@
+const double_elim = require ('../matchmakers/double_elimination')
+const swiss = require ('../matchmakers/swiss')
+
 // !mode picks the tournament mode
 module.exports = async ({
   messaging: {
@@ -12,15 +15,15 @@ module.exports = async ({
   },
 }) => {
   not_in_progress_check ()
-  switch (split_message [1]) {
-    case 'swiss':
-      matchmaker = swiss
-      await send_message (`Matchmaking mode has been set to swiss cut`)
-      break
-    case 'double_elimination':
-      matchmaker = double_elim
-      await send_message (`Matchmaking mode has been set to double elimination`)
-      break
-  }
+  await F.match (split_message [1])
+  .case ('swiss') (async () => {
+    matchmaker = swiss
+    await send_message (`Matchmaking mode has been set to swiss cut`)
+  })
+  .case ('double_elimination') (async () => {
+    matchmaker = double_elim
+    await send_message (`Matchmaking mode has been set to double elimination`)
+  })
+  .default (async () => `"${split_message [1]}" is not a valid mode\nValid modes are "swiss" and "double_elimination"`)
   dirty = true
 }

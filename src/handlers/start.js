@@ -4,10 +4,11 @@ module.exports = async ({
     send_message,
     send_main_message,
     log_command,
+    announce_pairings,
   },
   info,
   util: {
-    announce_pairings,
+    shuffle,
   },
   checks: {
     not_in_progress_check,

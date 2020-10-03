@@ -1,0 +1,8 @@
+global.REGISTERED_ERROR = {}
+global.NOT_REGISTERED_ERROR = {}
+global.JOINED_ERROR = {}
+global.NOT_JOINED_ERROR = {}
+global.IN_PROGRESS_ERROR = {}
+global.NOT_IN_PROGRESS_ERROR = {}
+global.NOT_PLAYING_ERROR = {}
+global.NOT_CAPTAIN_ERROR = {}
