@@ -4,23 +4,47 @@ const fs = require ('fs')
 const edmondsBlossom = require ('edmonds-blossom')
 const { promisify } = require ('util')
 const AWS = require ('aws-sdk')
-const S3 = new AWS.S3 (require ('./credentials')) // TODO: confirm this is correct
+const S3 = new AWS.S3 (require ('./credentials'))
 
 require ('green_curry') (['globalize'])
 
 const config = require ('./config')
+global.config = config
 const rules = config.rules
+global.rules = rules
 
-const REGISTERED_ERROR = {}
-const NOT_REGISTERED_ERROR = {}
-const JOINED_ERROR = {}
-const NOT_JOINED_ERROR = {}
-const IN_PROGRESS_ERROR = {}
-const NOT_IN_PROGRESS_ERROR = {}
-const NOT_PLAYING_ERROR = {}
+const welcome = require ('./src/welcome')
+const register = require ('./src/register')
+const join = require ('./src/join')
+const team = require ('./src/team')
+const teammates = require ('./src/teammates')
+const deck = require ('./src/deck')
+const decks = require ('./src/decks')
+const status = require ('./src/status')
+const scoreboard = require ('./src/scoreboard')
+const leaderboard = require ('./src/leaderboard')
+const mode = require ('./src/mode')
+const start = require ('./src/start')
+const next = require ('./src/next')
+const play = require ('./src/play')
+const record = require ('./src/record')
+const score = require ('./src/score')
+const drop = require ('./src/drop')
+const end = require ('./src/end')
+const mmr = require ('./src/mmr')
+const help = require ('./src/help')
 
-let in_progress = false
-let round = 1
+global.REGISTERED_ERROR = {}
+global.NOT_REGISTERED_ERROR = {}
+global.JOINED_ERROR = {}
+global.NOT_JOINED_ERROR = {}
+global.IN_PROGRESS_ERROR = {}
+global.NOT_IN_PROGRESS_ERROR = {}
+global.NOT_PLAYING_ERROR = {}
+global.NOT_CAPTAIN_ERROR = {}
+
+global.in_progress = false
+global.round = 1
 /*
 {
   id: string,
@@ -34,7 +58,7 @@ let round = 1
   }
 }
 */
-let players = []
+global.players = []
 /*
 {
   id: string,
@@ -48,15 +72,16 @@ let players = []
   points: int
 }
 */
-let joined = []
-let dropped = []
+global.joined = []
+global.dropped = []
 
 const get_player_by_id = id => A.try_find (x => x.id === id) (players)
 
 const user_string = u => `${u.username}#${u.discriminator}`
+const user_string_by_id = id => user_string (client.fetchUser (id))
 
 // richard-knuth
-const shuffle = array => {
+global.shuffle = array => {
   var currentIndex = array.length, temporaryValue, randomIndex
   // While there remain elements to shuffle...
   while (0 !== currentIndex) {
@@ -69,6 +94,19 @@ const shuffle = array => {
     array[randomIndex] = temporaryValue
   }
   return array
+}
+
+const get_team_mmr = joined => A.fold (F ['+']) (0) (A.map (get_player_by_id) ([joined.id, ... joined.team]))
+
+// seeds according to mmr ratings
+global.seed = joined => {
+  const joined2 = A.sort (x => y => get_team_mmr (x) - get_team_mmr (y)) (joined)
+  const joined3 = A.create (Math.pow (2, Math.ceil (Math.log2 (joined2.length)))) (null)
+  for (const i in joined2) {
+    const p = joined2 [i]
+    joined3 [i < joined3.length / 2 ? i * 2 : joined3.length - (i - joined3.length / 2) * 2 - 1] = p
+  }
+  return players3
 }
 
 // swiss pairing
@@ -140,8 +178,7 @@ const double_elim = players => {
 
   // generates bracket on first run, just updates and outputs resulting matches in subsequent runs
   if (! brackets) {
-    const players2 = shuffle (players)
-    players2.length = Math.pow (2, Math.ceil (Math.log2 (players2.length)))
+    const players2 = seed (players)
     brackets = {
       winners: A.map (x => x && x.id) (players2),
       losers: [],
@@ -188,28 +225,7 @@ const double_elim = players => {
   return get_matchups ()
 }
 
-let matchmaker = swiss
-
-const score = p =>
-  p.points !== undefined
-  ? p
-  : {
-    ... p,
-    points:
-      F.p (p.matchups) (
-        A.map (x =>
-          F.match (x.result)
-          .case ('win') (() => rules.points_per_win)
-          .case ('loss') (() => rules.points_per_loss)
-          .case ('draw') (() => rules.points_per_draw)
-          .case ('bye') (() => rules.points_per_win)
-          .case ('drop') (() => rules.points_per_loss)
-          .default (() => 0)
-        )
-        >> A.fold (F ['+']) (0)
-      )
-    ,
-  }
+global.matchmaker = swiss
 
 const record_match = result => p => {
   const pjoin = A.find (x => x.id === p.id) (joined)
@@ -235,12 +251,12 @@ const record_match = result => p => {
   ojoin.playing = true
   ojoin.points = undefined
 }
-const record_win = record_match ('win')
-const record_draw = record_match ('draw')
-const record_loss = record_match ('loss')
-const record_drop = record_match ('drop')
+global.record_win = record_match ('win')
+global.record_draw = record_match ('draw')
+global.record_loss = record_match ('loss')
+global.record_drop = record_match ('drop')
 
-let dirty = false
+global.dirty = false
 const save_state = async () => {
   if (! dirty) {
     return
@@ -316,9 +332,10 @@ const load_state = async () => {
     const send_main_message = async (s, opts) => (await client.channels.get (config.main_channel_id)).send (s, opts)
     const send_main_messages = async (ss, opts) => await send_main_message (S.join ('\n') (ss), opts)
     const send_log_message = async (s, opts) => (await client.channels.get (config.log_channel_id)).send (s, opts)
+
     const is_admin = A.contains (message.author.id) (config.admins)
     const split_message = S.split (' ') (message.content)
-    const n = split_message [1]
+    const n = split_message [1] || ''
     const command = split_message [0]
     const is_admin_command = S.match (new RegExp (`^${config.admin_prefix}`)) (command)
     if (is_admin_command && ! is_admin) {
@@ -331,11 +348,11 @@ const load_state = async () => {
 
     const player = A.try_find (x => x.id === id) (players)
     const player_entry = A.try_find (x => x.id === id) (joined)
+    const captain = A.try_find (x => x.id === player.id || A.contains (player.id) (x.team)) (joined)
 
     const log_command = async () =>
       (await client.channels.get (config.log_channel_id))
       .send (`${user_id} | <@${user_id}> - ${new Date ().toLocaleTimeString ('en-US')}: ${message.content}`)
-    const no_player_error = async () => await send_message (`${is_admin_command ? 'Player has' : 'You have'} not registered for this tournament with !register yet`)
 
     const announce_pairings = () =>
       A.P.p.iter (async x => {
@@ -345,12 +362,10 @@ const load_state = async () => {
         }
         const opp = A.find (y => y.id === x.matchups [0].id) (joined)
         await send_user_message (x.id, `The next round has begun. You are matched against ${user_string (opp)}`)
-        // await images.get_decklist (x.id) (player)
-        // await send_user_message (x.id, `Your decklist:`, {files: [`${config.temp_images_path}/${x.id}.jpg`]})
-        // await promisify (fs.unlink) (`${config.temp_images_path}/${x.id}.jpg`)
-        // await images.get_decklist (x.id) (opp)
-        // await send_user_message (x.id, `Your opponent's decklist:`, {files: [`${config.temp_images_path}/${x.id}.jpg`]})
-        // await promisify (fs.unlink) (`${config.temp_images_path}/${x.id}.jpg`)
+        opp.team.length && await send_user_messages (x.id, [
+          `Their teammates are:`,
+          ... A.map (user_string_by_id) (opp.team),
+        ])
       }) (joined)
 
     const print_scoreboard = async () => {
@@ -390,6 +405,7 @@ const load_state = async () => {
       await print_scoreboard ()
       await send_direct_message (`Please use ${config.prefix}welcome in the public bot channel after any further tournament conclusions`)
       players = A.map (x => {
+        // TODO: handle updating mmr for team members and counting team member mmr
         const pjoin = A.try_find (y => y.id === x.id) (players)
         if (! pjoin) {
           return x
@@ -434,431 +450,91 @@ const load_state = async () => {
     const in_progress_check = check (NOT_IN_PROGRESS_ERROR) (in_progress)
     const not_in_progress_check = check (IN_PROGRESS_ERROR) (! in_progress)
     const playing_check = check (NOT_PLAYING_ERROR) (player && player.playing)
+    const captain_check = check (NOT_CAPTAIN_ERROR) (captain && captain.id === player.id)
+
+    const messaging = {
+      send_message,
+      send_messages,
+      send_direct_message,
+      send_direct_messages,
+      send_admin_message,
+      send_admin_messages,
+      send_dev_message,
+      send_dev_messages,
+      send_user_message,
+      send_user_messages,
+      send_main_message,
+      send_main_messages,
+      send_log_message,
+      log_command,
+    }
+    const info = {
+      message,
+      is_admin,
+      split_message,
+      n,
+      command,
+      is_admin_command,
+      user_id,
+      id,
+      player,
+      player_entry,
+      captain,
+    }
+    const util = {
+      user_string_by_id,
+      user_string,
+      announce_pairings,
+      print_scoreboard,
+      cleanup,
+    }
+    const checks = {
+      registered_check,
+      not_registered_check,
+      joined_check,
+      not_joined_check,
+      in_progress_check,
+      not_in_progress_check,
+      playing_check,
+      captain_check,
+    }
 
     try {
-      switch (command) {
-        // !welcome to list the briefing
-        case `${config.prefix}welcome`:
-          not_in_progress_check ()
-          await send_main_messages ([
-            `This is the automated tournament bot for CommuniTeam Esports`,
-            `All players that want to participate should register with the bot using ${config.prefix}register`,
-            `After registering, the bot will work in private messages`,
-            `Players that want to join the next tournament should join with the bot using ${config.prefix}join`,
-            `After all players have registered and joined, a tournament organizer starts the tournament with ${config.prefix}start`,
-            `Use !help to get a list of commands and their usages`,
-          ])
-          return
-        // !register to join the day's tournament
-        case `${config.prefix}register`:
-          not_registered_check ()
-          players = [... players, {
-            id,
-            username: message.author.username,
-            discriminator: message.author.discriminator,
-            mmr: rules.starting_mmr,
-            history: [],
-          }]
-          await send_direct_messages ([
-            `Your account has been registered`,
-            `Join the next tournament by using ${config.prefix}join`,
-            `Use ${config.prefix}help to get a list of commands and their usages`,
-          ])
-          await log_command ()
-          dirty = true
-          return
-        // !join to join the next tournament
-        case `${config.prefix}join`:
-          not_in_progress_check ()
-          registered_check ()
-          not_joined_check ()
-          joined = [... joined, {
-            id: player.id,
-            team: [],
-            decks: [],
-            matchups: [],
-            playing: true,
-            points: 0,
-          }]
-          await send_direct_messages ([
-            `You have joined for the next automated casual tournament`,
-            `Submit the decks that you will be using for this tournament with ${config.prefix}deck`,
-            `Add other players to your team with ${config.prefix}team`,
-            `Use ${config.prefix}help to get a list of commands and their usages`,
-          ])
-          dirty = true
-          return
-        // set teammates
-        case `${config.prefix}team`:
-          registered_check ()
-          joined_check ()
-          not_in_progress_check ()
-          if (player_entry.team.length >= rules.players_per_team - 1) {
-            await send_message (`Exceeded number of players per team: ${rules.players_per_team}`)
-            return
-          }
-          if (! message.mentions.users.array () [0]) {
-            await send_message (`Expected a user mention but was not given one`)
-            return
-          }
-          if (A.exists (x => x.id === message.mentions.users.array () [0].id || A.contains (message.mentions.users.array () [0].id) (x.team)) (joined)) {
-            await send_message (`That player has already joined the tournament and may not join a team unless they drop`)
-            return
-          }
-          player_entry.team = [... player_entry.team, message.mentions.users.array () [0].id]
-          dirty = true
-          return
-        // !deck 1-4 to set the deck. no validation, but just ping the player and their partner when the match starts
-        case `${config.prefix}deck`:
-          registered_check ()
-          joined_check ()
-          not_in_progress_check ()
-          if (! S.match (/^([0-9]+)$/) (n) && ~~n >= 1 && ~~n <= rules.number_of_decks && (~~n === 1 || player_entry.decks [n - 2])) {
-            await send_message (`Expected deck slot to be between 1 and ${rules.number_of_decks} but was given "${n}"`)
-            return
-          }
-          const url = message.attachments.first ().url
-          player_entry.decks [n - 1] = url
-          await send_message (`Successfully submit deck ${n}`)
-          await send_log_message (`${user_string (message.author)} - ${new Date ().toLocaleTimeString ('en-US')}: ${message.content} ${url}`)
-          dirty = true
-          return
-        // !decklist to provide decklist printout
-        case `${config.prefix}decks`:
-          registered_check ()
-          joined_check ()
-          await send_message (`Your submitted decks are:`)
-          await A.P.s.iteri (i => async x => x && await send_message (`Deck ${i + 1}: ${x}`)) (player_entry.decks)
-          return
-        // !status lists out any players that aren't ready and what they are missing
-        case `${config.prefix}status`:
-          if (! in_progress) {
-            await send_message (`There are ${joined.length} players registered for the next tournament`)
-            return
-          }
-          const idle = A.filter (x => ! x.playing) (joined)
-          const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (joined)
-          const won = A.filter (x => x.matchups [0].result === 'win') (joined)
-          const lost = A.filter (x => x.matchups [0].result === 'loss') (joined)
-          const drew = A.filter (x => x.matchups [0].result === 'draw') (joined)
-          const bye = A.filter (x => x.matchups [0].result === 'bye') (joined)
-          await send_messages ([
-            `The following players are idle:`,
-            ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (idle),
-            `The following players are playing:`,
-            ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (playing),
-            `The following players have won their game:`,
-            ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (won),
-            `The following players have lost their game:`,
-            ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (lost),
-            `The following players have drawn their game:`,
-            ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (drew),
-            `The following players received a bye:`,
-            ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (bye),
-          ])
-          return
-        // !scoreboard to print out the current scores
-        case `${config.prefix}scoreboard`:
-          in_progress_check ()
-          await print_scoreboard ()
-          await log_command ()
-          return
-        // !leaderboard to print out highest mmr players
-        case `${config.prefix}leaderboard`:
-          // TODO: prints out top mmr players
-          // TODO: option for printing out only players in current tournament
-          return
-        // !mode picks the tournament mode
-        case `${config.prefix}mode`:
-          not_in_progress_check ()
-          switch (split_message [1]) {
-            case 'swiss':
-              matchmaker = swiss
-              await send_message (`Matchmaking mode has been set to swiss cut`)
-              break
-            case 'double_elimination':
-              matchmaker = double_elim
-              await send_message (`Matchmaking mode has been set to double elimination`)
-              break
-          }
-          dirty = true
-          return
-        // !start closes registration and starts the tournament
-        case `${config.prefix}start`:
-          if (A.length (joined) <= 1) {
-            not_in_progress_check ()
-            await send_message (`Not enough players to start a tournament`)
-            return
-          }
-          not_in_progress_check ()
-          in_progress = true
-          await send_main_message (`The tournament has begun`)
-          // begin matchmaking
-          round++
-          joined = matchmaker (shuffle (joined))
-          // send direct message to each participant with their partner and respective decklists
-          await announce_pairings ()
-          await log_command ()
-          dirty = true
-          return
-        // !next starts the next round of the tournament
-        case `${config.prefix}next`:
-        case `${config.admin_prefix}next`:
-          in_progress_check ()
-          if (! is_admin_command) {
-            await (`You are not a tournament organizer`)
-            return
-          }
-          if (A.exists (x => x.matchups [0].result === 'pending') (joined)) {
-            const idle = A.filter (x => ! x.playing) (joined)
-            const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (joined)
-            await send_messages ([
-              `The following players have not started their game:`,
-              ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (idle),
-              `The following players have not finished their game:`,
-              ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (playing),
-            ])
-            return
-          }
-          // begin matchmaking
-          round++
-          joined = matchmaker (shuffle (A.map (x => ({ ... x, playing: false })) (joined)))
-          if (A.for_all (x => x.matchups [0].result === 'bye') (joined)) {
-            await cleanup ()
-            return
-          }
-          await print_scoreboard ()
-          await send_main_message (`The next round of the tournament has begun`)
-          // send direct message to each participant with their partner and respective decklists
-          await announce_pairings ()
-          await log_command ()
-          dirty = true
-          return
-        // !play signals that the match for the player and their partner has started so the bot can nag people that haven't started their game
-        case `${config.prefix}play`:
-          // add player to active players
-          registered_check ()
-          joined_check ()
-          in_progress_check ()
-          A.find (x => x.id === player.id) (joined).playing = true
-          await send_messages ([
-            `You have been marked as present`,
-            `Once the set is over, report the match result with ${config.prefix}win, ${config.prefix}loss, or ${config.prefix}draw`,
-          ])
-          await log_command ()
-          dirty = true
-          return
-        // !win/!loss/!draw to report the result
-        case `${config.prefix}win`:
-        case `${config.admin_prefix}win`:
-          // records win result
-          registered_check ()
-          joined_check ()
-          in_progress_check ()
-          playing_check ()
-          record_win (player)
-          await send_messages ([
-            `Your win has been recorded`,
-            `Wait for the next round to begin`,
-          ])
-          await send_user_message (player.matchups [0].id, `Your opponent has recorded a loss for you`)
-          await log_command ()
-          dirty = true
-          return
-        case `${config.prefix}loss`:
-        case `${config.admin_prefix}loss`:
-          // records loss result
-          registered_check ()
-          joined_check ()
-          in_progress_check ()
-          playing_check ()
-          record_loss (player)
-          await send_messages ([
-            `Your loss has been recorded`,
-            `Wait for the next round to begin`,
-          ])
-          await send_user_message (player.matchups [0].id, `Your opponent has recorded a win for you`)
-          await log_command ()
-          dirty = true
-          return
-        case `${config.prefix}draw`:
-        case `${config.admin_prefix}draw`:
-          // records win result
-          registered_check ()
-          joined_check ()
-          in_progress_check ()
-          playing_check ()
-          record_draw (player)
-          await send_messages ([
-            `Your draw has been recorded`,
-            `Wait for the next round to begin`,
-          ])
-          await send_user_message (player.matchups [0].id, `Your opponent has recorded a draw for you`)
-          await log_command ()
-          dirty = true
-          return
-        // !score to view your current score
-        case `${config.prefix}score`:
-        case `${config.admin_prefix}score`:
-          registered_check ()
-          joined_check ()
-          in_progress_check ()
-          const scored = score (player)
-          players = [
-            ... A.filter (x => x.id !== id) (players),
-            scored,
-          ]
-          const win = A.length (A.filter (x => x.result === 'win') (scored.matchups))
-          const loss = A.length (A.filter (x => x.result === 'loss') (scored.matchups))
-          const draw = A.length (A.filter (x => x.result === 'draw') (scored.matchups))
-          await send_message (`${scored.username}#${scored.discriminator} [ ${scored.points} points | ${win} W - ${loss} L - ${draw} D ]`)
-          return
-        // !drop to leave the tournament
-        case `${config.prefix}drop`:
-        case `${config.admin_prefix}drop`:
-          registered_check ()
-          joined_check ()
-          if (in_progress) {
-            A.find (x => x.id === player.id) (joined).matchups [0].result === 'pending' && record_drop (player)
-            dropped = [... dropped, player]
-          }
-          else {
-            joined = A.filter (x => x.id !== player.id) (joined)
-          }
-          await send_message (`${is_admin_command ? 'Player has' : 'You have'} been dropped from this tournament`)
-          await log_command ()
-          dirty = true
-          return
-        // !end to end the tournament
-        case `${config.prefix}end`:
-        case `${config.admin_prefix}end`:
-          in_progress_check ()
-          if (! is_admin_command) {
-            await (`You are not a tournament organizer`)
-            return
-          }
-          if (A.exists (x => x.matchups [0].result === 'pending') (joined)) {
-            const idle = A.filter (x => ! x.playing) (joined)
-            const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (joined)
-            await send_messages ([
-              `The following players have not started their game:`,
-              ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (idle),
-              `The following players have not finished their game:`,
-              ... A.map (F.c () (D.get ('id') >> get_player_by_id >> user_string)) (playing),
-            ])
-            return
-          }
-          await cleanup ()
-          await log_command ()
-          dirty = true
-          return
-        // !mmr to set mmr
-        case `${config.admin_prefix}mmr`:
-          player.mmr = ~~ split_message [1]
-          await send_message (`The MMR for ${player.id} has been set to ${split_message [1]}`)
-          dirty = true
-          return
-        // !help list available commands
-        case `${config.prefix}help`: {
-          if (is_admin) {
-            await send_message (`Commands with an admin version can be used by using the ${config.admin_prefix} admin prefix and using the player's id as the first argument`)
-          }
-          // TODO: add new commands
-          await F.p ([{
-            check: false,
-            command: `welcome`,
-            effect: `print out the initial explanation of the bot`,
-          }, {
-            check: ! in_progress,
-            command: `register`,
-            effect: `sign up for the next tournament`,
-          }, {
-            check: ! in_progress,
-            command: `team <@user>`,
-            effect: `add another player to your team`,
-          }, {
-            check: ! in_progress,
-            command: `deck <slot>`,
-            effect: `submit a deck in the chosen slot from an image attachment`,
-          }, {
-            command: `decks`,
-            effect: `review your submitted decks`,
-          }, {
-            command: `status`,
-            effect: `print out the current status of each player in the tournament`,
-          }, {
-            check: in_progress,
-            command: `scoreboard`,
-            effect: `prints out the scores for the current tournament`,
-          }, {
-            check: in_progress,
-            command: `leaderboard`,
-            effect: `prints out a list of the top rated players`,
-          }, {
-            check: ! in_progress,
-            command: `mode <swiss|double_elimination>`,
-            effect: `sets the format for the next tournament`,
-          }, {
-            check: false,
-            command: `start`,
-            effect: `begin the tournament and designate the user of this command as the tournament organizer`,
-          }, {
-            check: false,
-            command: `next`,
-            effect: `begin the next round in the tournament unless there are players that are not ready`,
-            has_admin_version: true,
-          }, {
-            check: in_progress,
-            command: `play`,
-            effect: `mark yourself as having begun your match against your opponent`,
-          }, {
-            check: in_progress,
-            command: `win`,
-            effect: `report that you won your match`,
-            has_admin_version: true,
-          }, {
-            check: in_progress,
-            command: `loss`,
-            effect: `report that you lost your match`,
-            has_admin_version: true,
-          }, {
-            check: in_progress,
-            command: `draw`,
-            effect: `report that you drew your match`,
-            has_admin_version: true,
-          }, {
-            check: in_progress,
-            command: `score`,
-            effect: `shows your current score for the tournament`,
-          }, {
-            command: `drop`,
-            effect: `withdraw from the tournament`,
-            has_admin_version: true,
-          }, {
-            check: false,
-            command: `end`,
-            effect: `end the tournament and print out the scoreboard`,
-            has_admin_version: true,
-          }, {
-            command: `help`,
-            effect: `Hint: you just used it`,
-          }]) (
-            A.filter (x => x.check || is_admin)
-            >> A.map (({
-              command,
-              effect,
-              has_admin_version = false,
-            }) => [
-              `Command: ${config.prefix}${command}`,
-              `Effect: ${effect}`,
-              ... (has_admin_version && is_admin ? [`This command has an admin version`] : [])
-            ])
-            >> A.fold (A.append) ([])
-            >> send_messages
-          )
-          return
-        }
-      }
+      const handler =
+        F.match (command)
+        .case (`${config.prefix}welcome`) (() => welcome)
+        .case (`${config.prefix}register`) (() => register)
+        .case (`${config.prefix}join`) (() => join)
+        .case (`${config.prefix}team`) (() => team)
+        .case (`${config.prefix}teammates`) (() => teammates)
+        .case (`${config.prefix}deck`) (() => deck)
+        .case (`${config.prefix}decks`) (() => decks)
+        .case (`${config.prefix}status`) (() => status)
+        .case (`${config.prefix}scoreboard`) (() => scoreboard)
+        .case (`${config.prefix}leaderboard`) (() => leaderboard)
+        .case (`${config.admin_prefix}mode`) (() => mode)
+        .case (`${config.admin_prefix}start`) (() => start)
+        .case (`${config.admin_prefix}next`) (() => next)
+        .case (`${config.prefix}play`) (() => play)
+        .case (`${config.prefix}win`) (() => record)
+        .case (`${config.admin_prefix}win`) (() => record)
+        .case (`${config.prefix}lose`) (() => record)
+        .case (`${config.admin_prefix}lose`) (() => record)
+        .case (`${config.prefix}draw`) (() => record)
+        .case (`${config.admin_prefix}draw`) (() => record)
+        .case (`${config.prefix}score`) (() => score)
+        .case (`${config.prefix}drop`) (() => drop)
+        .case (`${config.admin_prefix}drop`) (() => drop)
+        .case (`${config.admin_prefix}end`) (() => end)
+        .case (`${config.admin_prefix}mmr`) (() => mmr)
+        .case (`${config.prefix}help`) (() => help)
+        .default (() => async () => await send_message (`That is not a valid command\nUse ${config.prefix}help to list available commands`)) // TODO: help message to use help
+      await handler ({
+        messaging,
+        info,
+        util,
+        checks,
+      })
     }
     catch (err) {
       switch (err) {
@@ -883,9 +559,12 @@ const load_state = async () => {
         case NOT_PLAYING_ERROR:
           await send_message (`${is_admin_command ? 'Player has' : 'You have'} not begun the round yet`)
           return
+        case NOT_CAPTAIN_ERROR:
+          await send_message (`This command should be run by the team captain instead`)
+          return
         default:
           await send_message ('There was an error processing your request')
-          await send_dev_messages ([err.message, err.stack])
+          await send_dev_messages ([message.content, err.message, err.stack])
           return
       }
     }
