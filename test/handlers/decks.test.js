@@ -11,6 +11,8 @@ const decks = require ('../../src/handlers/decks')
 describe ('decks', () => {
   beforeEach (reset_globals)
 
+  it ('lists your decks')
+
   test_checks ({
     handler: decks,
     functionality: 'list decks',

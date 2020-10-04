@@ -9,7 +9,9 @@ module.exports = async ({
     player,
     is_admin_command,
   },
-  util,
+  util: {
+    record_match,
+  },
   checks: {
     captain_check,
     registered_check,
@@ -19,10 +21,8 @@ module.exports = async ({
   captain_check ()
   registered_check ()
   joined_check ()
-  // TODO: drop mentioned user from team
-  // TODO: remove deck for dropped user's index
   if (in_progress) {
-    A.find (x => x.id === player.id) (joined).matchups [0].result === 'pending' && record_drop (player)
+    A.find (x => x.id === player.id) (joined).matchups [0].result === 'pending' && record_match ('drop') (player)
     dropped = [... dropped, player]
   }
   else {

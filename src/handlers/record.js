@@ -26,7 +26,7 @@ module.exports = ([
   joined_check ()
   in_progress_check ()
   playing_check ()
-  record_match (p_result)
+  record_match (p_result) (player)
   await send_messages ([
     `Your ${p_result} has been recorded`,
     `Wait for the next round to begin`,
