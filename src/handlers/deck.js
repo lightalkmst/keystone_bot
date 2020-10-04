@@ -23,7 +23,7 @@ module.exports = async ({
   registered_check ()
   joined_check ()
   not_in_progress_check ()
-  if (! S.match (/^([0-9]+)$/) (n) && ~~n >= 1 && ~~n <= rules.number_of_decks && (~~n === 1 || player_entry.decks [n - 2])) {
+  if (! S.match (/^([0-9]+)$/) (n) || ~~n < 1 || ~~n > Math.min (player_entry.decks.length + 1, rules.number_of_decks)) {
     await send_message (`Expected deck slot to be between 1 and ${rules.number_of_decks} but was given "${n}"`)
     return
   }

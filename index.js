@@ -101,35 +101,34 @@ const {
 
     try {
       const router = command =>
-        ({
-          [`${config.prefix}welcome`]: welcome,
-          [`${config.prefix}register`]: register,
-          [`${config.prefix}join`]: join,
-          [`${config.prefix}team`]: team,
-          [`${config.prefix}teammates`]: teammates,
-          [`${config.prefix}deck`]: deck,
-          [`${config.prefix}decks`]: decks,
-          [`${config.prefix}status`]: status,
-          [`${config.prefix}scoreboard`]: scoreboard,
-          [`${config.prefix}leaderboard`]: leaderboard,
-          [`${config.admin_prefix}mode`]: mode,
-          [`${config.admin_prefix}start`]: start,
-          [`${config.admin_prefix}next`]: next,
-          [`${config.prefix}play`]: play,
-          [`${config.prefix}win`]: record (['win', 'loss']),
-          [`${config.admin_prefix}win`]: record  (['win', 'loss']),
-          [`${config.prefix}lose`]: record  (['loss', 'win']),
-          [`${config.admin_prefix}lose`]: record  (['loss', 'win']),
-          [`${config.prefix}draw`]: record  (['draw', 'draw']),
-          [`${config.admin_prefix}draw`]: record  (['draw', 'draw']),
-          [`${config.prefix}score`]: score,
-          [`${config.prefix}drop`]: drop,
-          [`${config.admin_prefix}drop`]: drop,
-          [`${config.admin_prefix}end`]: end,
-          [`${config.admin_prefix}mmr`]: mmr,
-          [`${config.prefix}help`]: help,
-        }) [command]
-        || (() => messaging.send_message (`That is not a valid command\nUse ${config.prefix}help to list available commands`))
+        F.match (command)
+        .case (`${config.prefix}welcome`) (F.const (welcome))
+        .case (`${config.prefix}register`) (F.const (register))
+        .case (`${config.prefix}join`) (F.const (join))
+        .case (`${config.prefix}team`) (F.const (team))
+        .case (`${config.prefix}teammates`) (F.const (teammates))
+        .case (`${config.prefix}deck`) (F.const (deck))
+        .case (`${config.prefix}decks`) (F.const (decks))
+        .case (`${config.prefix}status`) (F.const (status))
+        .case (`${config.prefix}scoreboard`) (F.const (scoreboard))
+        .case (`${config.prefix}leaderboard`) (F.const (leaderboard))
+        .case (`${config.admin_prefix}mode`) (F.const (mode))
+        .case (`${config.admin_prefix}start`) (F.const (start))
+        .case (`${config.admin_prefix}next`) (F.const (next))
+        .case (`${config.prefix}play`) (F.const (play))
+        .case (`${config.prefix}win`) (F.const (record (['win', 'loss'])))
+        .case (`${config.admin_prefix}win`) (F.const (record  (['win', 'loss'])))
+        .case (`${config.prefix}lose`) (F.const (record  (['loss', 'win'])))
+        .case (`${config.admin_prefix}lose`) (F.const (record  (['loss', 'win'])))
+        .case (`${config.prefix}draw`) (F.const (record  (['draw', 'draw'])))
+        .case (`${config.admin_prefix}draw`) (F.const (record  (['draw', 'draw'])))
+        .case (`${config.prefix}score`) (F.const (score))
+        .case (`${config.prefix}drop`) (F.const (drop))
+        .case (`${config.admin_prefix}drop`) (F.const (drop))
+        .case (`${config.admin_prefix}end`) (F.const (end))
+        .case (`${config.admin_prefix}mmr`) (F.const (mmr))
+        .case (`${config.prefix}help`) (F.const (help))
+        .default (F.const (F.const (messaging.send_message (`That is not a valid command\nUse ${config.prefix}help to list available commands`))))
       await router (command) ({
         messaging,
         info,
@@ -142,15 +141,15 @@ const {
       const player_has = is_admin_command ? 'Player has' : 'You have'
       const err_message =
         F.match (err)
-        .case (REGISTERED_ERROR) (() => `${player_has} already registered in this system`)
-        .case (NOT_REGISTERED_ERROR) (() => `${player_has} not registered in this system with ${config.prefix}register yet`)
-        .case (JOINED_ERROR) (() => `${player_has} already joined the tournament`)
-        .case (NOT_JOINED_ERROR) (() => `${player_has} not joined this tournament with ${config.prefix}join yet`)
-        .case (IN_PROGRESS_ERROR) (() => `The tournament has already started`)
-        .case (NOT_IN_PROGRESS_ERROR) (() => `The tournament has not started yet`)
-        .case (NOT_PLAYING_ERROR) (() => `${player_has} not begun the round yet`)
-        .case (NOT_CAPTAIN_ERROR) (() => `This command should be run by the team captain instead`)
-        .default (() => default_message)
+        .case (REGISTERED_ERROR) (F.const (`${player_has} already registered in this system`))
+        .case (NOT_REGISTERED_ERROR) (F.const (`${player_has} not registered in this system with ${config.prefix}register yet`))
+        .case (JOINED_ERROR) (F.const (`${player_has} already joined the tournament`))
+        .case (NOT_JOINED_ERROR) (F.const (`${player_has} not joined this tournament with ${config.prefix}join yet`))
+        .case (IN_PROGRESS_ERROR) (F.const (`The tournament has already started`))
+        .case (NOT_IN_PROGRESS_ERROR) (F.const (`The tournament has not started yet`))
+        .case (NOT_PLAYING_ERROR) (F.const (`${player_has} not begun the round yet`))
+        .case (NOT_CAPTAIN_ERROR) (F.const (`This command should be run by the team captain instead`))
+        .default (F.const (default_message))
       await messaging.send_message (err_message)
       if (err_message === default_message) {
         await messaging.send_dev_messages ([message.content, err.message, err.stack])
