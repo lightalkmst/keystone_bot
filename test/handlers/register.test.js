@@ -3,6 +3,7 @@ const assert = require ('assert')
 const {
   reset_globals,
   basic_mock_request,
+  test_checks,
 } = require ('../_test_utils')
 
 const register = require ('../../src/handlers/register')
@@ -23,20 +24,12 @@ describe ('register', () => {
     assert (dirty)
   })
 
-  it ('does not add you to the player registry twice', async () => {
-    const req = basic_mock_request ('register')
-    try {
-      await register ({
-        ... req,
-        checks: {
-          ... req.checks,
-          not_registered_check: () => F.throw (REGISTERED_ERROR)
-        },
-      })
-      assert.fail ()
-    }
-    catch (err) {
-      assert.equal (err, REGISTERED_ERROR)
-    }
+  test_checks ({
+    handler: register,
+    functionality: 'add you to the player registry',
+    message: 'register',
+    errors: [
+      REGISTERED_ERROR,
+    ],
   })
 })

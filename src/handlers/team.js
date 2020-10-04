@@ -16,6 +16,7 @@ module.exports = async ({
     not_in_progress_check,
   },
 }) => {
+  // TODO: does captain check fit here?
   registered_check ()
   joined_check ()
   not_in_progress_check ()

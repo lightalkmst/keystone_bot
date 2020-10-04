@@ -13,7 +13,6 @@ describe ('next', () => {
 
   it ('advances the tournament to the next round')
 
-
   test_checks ({
     handler: next,
     functionality: 'advance the tournament to the next round',
