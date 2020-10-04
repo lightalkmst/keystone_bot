@@ -3,6 +3,7 @@ const assert = require ('assert')
 const {
   reset_globals,
   basic_mock_request,
+  test_checks,
 } = require ('../_test_utils')
 
 const deck = require ('../../src/handlers/deck')
@@ -49,40 +50,17 @@ describe ('deck', () => {
     assert (dirty)
   })
 
-  F.p ([{
-    name: 'if you are not the captain',
-    check: 'captain_check',
-    error: NOT_CAPTAIN_ERROR,
-  }, {
-    name: 'if you are not registered',
-    check: 'registered_check',
-    error: NOT_REGISTERED_ERROR,
-  }, {
-    name: 'if you have not joined the tournament',
-    check: 'joined_check',
-    error: NOT_JOINED_ERROR,
-  }, {
-    name: 'if the tournament is in progress',
-    check: 'not_in_progress_check',
-    error: IN_PROGRESS_ERROR,
-  }]) (A.iter (test =>
-    it (`does not add a deck ${test.name}`, async () => {
-      const req = basic_mock_request ('deck 1')
-      try {
-        await deck ({
-          ... req,
-          checks: {
-            ... req.checks,
-            [test.check]: () => F.throw (test.error)
-          },
-        })
-        assert.fail ()
-      }
-      catch (err) {
-        assert.equal (err, test.error)
-      }
-    })
-  ))
+  test_checks ({
+    handler: deck,
+    functionality: 'add a deck',
+    message: 'deck 1',
+    errors: [
+      NOT_CAPTAIN_ERROR,
+      NOT_REGISTERED_ERROR,
+      NOT_JOINED_ERROR,
+      IN_PROGRESS_ERROR,
+    ],
+  })
 
   it ('does not add a deck if you specify an invalid slot', async () => {
     players = [{
