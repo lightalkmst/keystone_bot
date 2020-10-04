@@ -98,42 +98,42 @@ const test_checks = ({
         F.match (error)
         .case (REGISTERED_ERROR) (() => ({
           error,
-          check_text: 'if you are already registered',
+          check_text: 'you are already registered',
           check_name: 'not_registered_check',
         }))
         .case (NOT_REGISTERED_ERROR) (() => ({
           error,
-          check_text: 'if you are not registered',
+          check_text: 'you are not registered',
           check_name: 'registered_check',
         }))
         .case (JOINED_ERROR) (() => ({
           error,
-          check_text: 'if you have already joined the tournament',
+          check_text: 'you have already joined the tournament',
           check_name: 'not_joined_check',
         }))
         .case (NOT_JOINED_ERROR) (() => ({
           error,
-          check_text: 'if you have not joined the tournament',
+          check_text: 'you have not joined the tournament',
           check_name: 'joined_check',
         }))
         .case (IN_PROGRESS_ERROR) (() => ({
           error,
-          check_text: 'if the tournament is already in progress',
+          check_text: 'the tournament is already in progress',
           check_name: 'not_in_progress_check',
         }))
         .case (NOT_IN_PROGRESS_ERROR) (() => ({
           error,
-          check_text: 'if the tournament is not in progress',
+          check_text: 'the tournament is not in progress',
           check_name: 'in_progress_check',
         }))
         .case (NOT_PLAYING_ERROR) (() => ({
           error,
-          check_text: 'if you are not currently playing a round',
+          check_text: 'you are not currently playing a round',
           check_name: 'playing_check',
         }))
         .case (NOT_CAPTAIN_ERROR) (() => ({
           error,
-          check_text: 'if you are not the team captain',
+          check_text: 'you are not the team captain',
           check_name: 'captain_check',
         }))
         .end ()
@@ -143,7 +143,7 @@ const test_checks = ({
         check_text,
         check_name,
       }) =>
-        it (`does not ${functionality} ${check_name}`, async () => {
+        it (`does not ${functionality} if ${check_text}`, async () => {
           const req = basic_mock_request (message)
           try {
             await handler ({
