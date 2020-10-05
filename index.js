@@ -35,6 +35,8 @@ const {
   load_state,
 } = require ('./src/persistence')
 
+// TODO: add forever.js to prevent bot from shutting down
+
 ;(async () => {
   await load_state ()
   setInterval (save_state, config.save_state_interval)

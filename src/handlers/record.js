@@ -1,5 +1,4 @@
 // !win/!loss/!draw to report the result
-// TODO: parameterize and update
 module.exports = ([
   p_result,
   o_result,

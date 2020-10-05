@@ -14,33 +14,36 @@ const reset_globals = () => {
   round = 1
   in_progress = false
   dirty = false
+  messages = {}
 }
 
 // create default
+global.messages = {}
 const basic_mock_request = message => {
   const split_message = S.split (' ') (message)
   const n = split_message [1] || ''
   const command = split_message [0]
-  const mock_message = F.ignore
+  const mock_messages = k => ms => messages = {[k]: [... (messages[k] || []), ... ms]}
+  const mock_message = k => m => mock_messages (k) ([m])
   const mock_check = F.ignore
   return {
     messaging: {
-      send_message: mock_message,
-      send_messages: mock_message,
-      send_direct_message: mock_message,
-      send_direct_messages: mock_message,
-      send_admin_message: mock_message,
-      send_admin_messages: mock_message,
-      send_dev_message: mock_message,
-      send_dev_messages: mock_message,
-      send_user_message: mock_message,
-      send_user_messages: mock_message,
-      send_main_message: mock_message,
-      send_main_messages: mock_message,
-      send_log_message: mock_message,
-      log_command: mock_message,
-      announce_pairings: mock_message,
-      print_scoreboard: mock_message,
+      send_message: mock_message ('message'),
+      send_messages: mock_messages ('message'),
+      send_direct_message: mock_message ('direct_message'),
+      send_direct_messages: mock_messages ('direct_message'),
+      send_admin_message: mock_message ('admin_message'),
+      send_admin_messages: mock_messages ('admin_message'),
+      send_dev_message: mock_message ('dev_message'),
+      send_dev_messages: mock_messages ('dev_message'),
+      send_user_message: mock_message ('user_message'),
+      send_user_messages: mock_messages ('user_message'),
+      send_main_message: mock_message ('main_message'),
+      send_main_messages: mock_messages ('main_message'),
+      send_log_message: mock_message ('log_message'),
+      log_command: F.ignore,
+      announce_pairings: F.ignore,
+      print_scoreboard: F.ignore,
       cleanup: mock_message,
     },
     info: {
