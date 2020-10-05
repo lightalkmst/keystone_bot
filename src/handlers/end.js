@@ -15,10 +15,6 @@ module.exports = async ({
   },
 }) => {
   in_progress_check ()
-  if (! is_admin_command) {
-    await (`You are not a tournament organizer`)
-    return
-  }
   if (A.exists (x => x.matchups [0].result === 'pending') (joined)) {
     const idle = A.filter (x => ! x.playing) (joined)
     const playing = A.filter (x => x.playing && x.matchups [0].result === 'pending') (joined)

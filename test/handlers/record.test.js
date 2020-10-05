@@ -23,13 +23,11 @@ describe ('record', () => {
     }) => {
       const handler = record (results)
 
-      it (`records a ${results [0]} for you`)
-
-      it (`records a ${results [1]} for your opponent`)
+      it (`records a ${results [0]} for you and a ${results [1]} for your opponent`)
 
       test_checks ({
         handler,
-        functionality: `record a ${results [0]} for you`,
+        functionality: `record a ${results [0]} for you and a ${results [1]} for your opponent`,
         message: results [0],
         errors: [
           NOT_CAPTAIN_ERROR,
