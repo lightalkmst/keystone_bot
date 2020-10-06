@@ -62,34 +62,36 @@ describe ('deck', () => {
     ],
   })
 
-  it ('does not add a deck if you specify an invalid slot', async () => {
-    players = [{
-      discriminator: 'test_discriminator',
-      history: [],
-      id: 'test_id',
-      mmr: 1000,
-      username: 'test_username',
-    }]
-    joined = [{
-      decks: [],
-      id: 'test_id',
-      matchups: [],
-      playing: true,
-      points: 0,
-      team: [],
-    }]
-    const req = basic_mock_request ('deck 0')
-    await deck ({
-      ... req,
-      info: {
-        ... req.info,
-        message: {
-          ... req.info.message,
-          attachments: {first: F.const ({url: 'test_url'})},
+  describe ('errors', () => {
+    it ('does not add a deck if you specify an invalid slot', async () => {
+      players = [{
+        discriminator: 'test_discriminator',
+        history: [],
+        id: 'test_id',
+        mmr: 1000,
+        username: 'test_username',
+      }]
+      joined = [{
+        decks: [],
+        id: 'test_id',
+        matchups: [],
+        playing: true,
+        points: 0,
+        team: [],
+      }]
+      const req = basic_mock_request ('deck 0')
+      await deck ({
+        ... req,
+        info: {
+          ... req.info,
+          message: {
+            ... req.info.message,
+            attachments: {first: F.const ({url: 'test_url'})},
+          },
+          player_entry: joined [0],
         },
-        player_entry: joined [0],
-      },
+      })
+      assert.deepEqual (joined [0].decks, [])
     })
-    assert.deepEqual (joined [0].decks, [])
   })
 })

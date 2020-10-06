@@ -75,7 +75,10 @@ const basic_mock_request = message => {
 
       }, // TODO
     },
-    util,
+    util: {
+      ... util,
+      user_string_by_id: F.id,
+    },
     checks: {
       registered_check: mock_check,
       not_registered_check: mock_check,
@@ -88,6 +91,23 @@ const basic_mock_request = message => {
     },
   }
 }
+
+const mock_player = i => ({
+  discriminator: `test_discriminator${i}`,
+  history: [],
+  id: `test_id${i}`,
+  mmr: 1000,
+  username: `test_username${i}`,
+})
+
+const mock_joined = i => ({
+  decks: [],
+  id: `test_id${i}`,
+  matchups: [],
+  playing: true,
+  points: 0,
+  team: [],
+})
 
 const test_checks = ({
   handler,
@@ -170,5 +190,7 @@ const test_checks = ({
 module.exports = {
   reset_globals,
   basic_mock_request,
+  mock_player,
+  mock_joined,
   test_checks,
 }

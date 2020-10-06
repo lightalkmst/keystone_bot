@@ -12,7 +12,7 @@ module.exports = async ({
   checks,
 }) => {
   const leaderboard = A.sort (x => y => y.mmr - x.mmr) (players)
-  for (let i = 10 * (~~ split_message [1] || 1) - 10; i < 10 * (~~ split_message [1] || 1) - 10 && leaderboard [i]; i++) {
+  for (let i = 10 * ((~~ split_message [1] || 1) - 1); i < 10 * (~~ split_message [1] || 1); i++) {
     await send_message (user_string_by_id (leaderboard [i].id))
   }
 }

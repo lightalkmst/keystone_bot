@@ -3,6 +3,8 @@ const client = new Discord.Client ()
 const fs = require ('fs')
 const { promisify } = require ('util')
 
+global.client = client
+
 const {
   handlers: {
     welcome,

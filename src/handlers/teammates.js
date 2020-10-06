@@ -2,7 +2,9 @@ module.exports = async ({
   messaging: {
     send_messages,
   },
-  info,
+  info: {
+    captain,
+  },
   util: {
     user_string_by_id,
   },
