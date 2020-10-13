@@ -1,7 +1,7 @@
 const get_player_by_id = id => A.try_find (x => x.id === id) (players)
 
 const user_string = u => `${u.username}#${u.discriminator}`
-const user_string_by_id = id => user_string (client.fetchUser (id))
+const user_string_by_id = async id => user_string (await client.fetchUser (id))
 
 const get_team_mmr = joined => A.fold (F ['+']) (0) (A.map (get_player_by_id) ([joined.id, ... joined.team]))
 

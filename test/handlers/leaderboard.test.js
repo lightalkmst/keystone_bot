@@ -30,4 +30,6 @@ describe ('leaderboard', () => {
     ])
     assert (! dirty)
   })
+
+  it ('posts less than the full amount if there are not enough players')
 })

@@ -1,7 +1,7 @@
 // !leaderboard to print out highest mmr players
 module.exports = async ({
   messaging: {
-    send_message,
+    send_messages,
   },
   info: {
     split_message,
@@ -12,7 +12,10 @@ module.exports = async ({
   checks,
 }) => {
   const leaderboard = A.sort (x => y => y.mmr - x.mmr) (players)
-  for (let i = 10 * ((~~ split_message [1] || 1) - 1); i < 10 * (~~ split_message [1] || 1); i++) {
-    await send_message (user_string_by_id (leaderboard [i].id))
-  }
+  const idxs = A.range (10 * ((~~ split_message [1] || 1) - 1)) (10 * (~~ split_message [1] || 1))
+  const ps = A.filter (F.id) (A.map (i => leaderboard [i]) (idxs))
+  await send_messages ([
+    `The top players are:`,
+    ... await A.P.p.map (async x => `${await user_string_by_id (x.id)}: ${x.mmr}`) (ps),
+  ])
 }
