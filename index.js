@@ -132,7 +132,7 @@ const {
         .case (`${config.admin_prefix}end`) (F.const (end))
         .case (`${config.admin_prefix}mmr`) (F.const (mmr))
         .case (`${config.prefix}help`) (F.const (help))
-        .default (F.const (F.const (messaging.send_message (`That is not a valid command\nUse ${config.prefix}help to list available commands`))))
+        .default (F.const (() => messaging.send_message (`That is not a valid command\nUse ${config.prefix}help to list available commands`)))
       await router (command) ({
         messaging,
         info,
