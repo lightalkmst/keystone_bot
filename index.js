@@ -62,7 +62,7 @@ const {
 
     const player = A.try_find (x => x.id === id) (players)
     const player_entry = A.try_find (x => x.id === id) (joined)
-    const captain = id && A.try_find (x => x.id === player.id || A.contains (player.id) (x.team)) (joined)
+    const captain = id && player_entry && A.try_find (x => x.id === player.id || A.contains (player.id) (x.team)) (joined)
 
     const check = e => c => () => {
       if (! c) {
