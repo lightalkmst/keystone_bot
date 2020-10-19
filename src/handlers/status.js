@@ -7,6 +7,7 @@ module.exports = async ({
   util: {
     user_string,
     get_player_by_id,
+    seed,
   },
   checks,
 }) => {

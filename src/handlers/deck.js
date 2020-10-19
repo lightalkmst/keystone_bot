@@ -27,6 +27,7 @@ module.exports = async ({
     await send_message (`Expected deck slot to be between 1 and ${rules.number_of_decks} but was given "${n}"`)
     return
   }
+  // TODO: support submissions as links in the message
   const url = message.attachments.first ().url
   player_entry.decks [n - 1] = url
   await send_message (`Successfully submit deck ${n}`)
