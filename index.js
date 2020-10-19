@@ -44,11 +44,13 @@ const {
   setInterval (save_state, config.save_state_interval)
 
   client.on ('message', async message => {
-    if (S.index (config.prefix) (message.content) != 0)
+    const content = S.lower (message.content)
+
+    if (S.index (config.prefix) (content) != 0)
       return
 
     const is_admin = A.contains (message.author.id) (config.admins)
-    const split_message = S.split (' ') (message.content)
+    const split_message = S.split (' ') (content)
     const n = split_message [1] || ''
     const command = split_message [0]
     const is_admin_command = S.match (new RegExp (`^${config.admin_prefix}`)) (command)
@@ -156,7 +158,7 @@ const {
         .default (F.const (default_message))
       await messaging.send_message (err_message)
       if (err_message === default_message) {
-        await messaging.send_dev_messages ([message.content, err.message, err.stack])
+        await messaging.send_dev_messages ([content, err.message, err.stack])
       }
     }
   })
