@@ -15,7 +15,7 @@ module.exports = async ({
     await send_messages ([
       `There are ${joined.length} players registered for the next tournament`,
       `The expected seeding for current players is:`,
-      ... A.map (x => x || '(bye)') (seed (joined)),
+      ... (joined.length ? A.map (x => user_string (get_player_by_id (x.id)) || '(bye)') (seed (joined)) : []),
     ])
     return
   }

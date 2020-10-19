@@ -13,7 +13,7 @@ const seed = joined => {
     const p = joined2 [i]
     joined3 [i < joined3.length / 2 ? i * 2 : joined3.length - (i - joined3.length / 2) * 2 - 1] = p
   }
-  return players3
+  return joined3
 }
 
 const score = p =>
