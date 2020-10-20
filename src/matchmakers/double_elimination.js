@@ -1,4 +1,4 @@
-let brackets = null
+global.brackets = null
 module.exports = players => {
   const get_matchups = () => {
     return A.mapi (i => x => {
